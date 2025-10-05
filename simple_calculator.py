@@ -10,7 +10,10 @@ ctk.set_default_color_theme("blue")
 # Загрузка данных
 # -----------------
 df = pd.read_excel("data.xlsx", sheet_name="modules")
+# Новая таблица с фурнитурой
+kf_korp = pd.read_excel("data.xlsx", sheet_name="kf_korp")
 
+furn = pd.read_excel("data.xlsx", sheet_name="furn")
 # -----------------
 # Создание окна
 # -----------------
@@ -71,7 +74,12 @@ color_menu.pack(pady=5)
 
 price_label = ctk.CTkLabel(app, text="Цена корпуса: ")
 price_label.pack(pady=5)
-
+furn_price_var = tk.StringVar(value="0.00")
+furn_price_label = ctk.CTkLabel(app, text="Цена фурнитуры: 0.00 руб.")
+furn_price_label.pack(pady=5)
+total_price_var = ctk.StringVar(value="0.00")
+total_price_label = ctk.CTkLabel(app, text=f"Итоговая цена: {total_price_var.get()} руб.")
+total_price_label.pack(pady=5)
 
 # -----------------
 # Поля для ввода размеров (по центру)
@@ -129,61 +137,107 @@ def update_price(*args):
     selected_module = module_var.get()
     selected_color = color_var.get()
 
+    # Если модуль не выбран
     if not selected_module:
         price_var.set(0)
+        furn_price_var.set("0.00")
         price_label.configure(text="Цена корпуса: 0.00 руб.")
+        furn_price_label.configure(text="Цена фурнитуры: 0.00 руб.")
         return
 
+    # Получаем строку модуля
     price_row = df[df.iloc[:, 0] == selected_module]
     if price_row.empty:
         price_var.set(0)
+        furn_price_var.set("0.00")
         price_label.configure(text="Цена корпуса: 0.00 руб.")
+        furn_price_label.configure(text="Цена фурнитуры: 0.00 руб.")
         return
 
-    # Определяем колонку с базовой ценой по цвету
-    if selected_color == "Базовый":
-        base_price_col = 12  # 13-й столбец
-    else:  # "Премиум"
-        base_price_col = 13  # 14-й столбец
-
+    # Базовая цена корпуса
+    base_price_col = 12 if selected_color == "Базовый" else 13
     base_price = price_row.iloc[0, base_price_col]
     if pd.isna(base_price):
         base_price = 0.0
 
-    # Получаем базовые размеры
-    baz_height = price_row.iloc[0, 14]  # 16-й столбец
-    baz_width  = price_row.iloc[0, 15]  # 17-й столбец
-    baz_depth  = price_row.iloc[0, 16]  # 18-й столбец
+    # Базовые размеры
+    baz_height = price_row.iloc[0, 14]
+    baz_width  = price_row.iloc[0, 15]
+    baz_depth  = price_row.iloc[0, 16]
 
-    # Получаем коэффициенты
-    coeff_height = price_row.iloc[0, 17]  # 19-й столбец
-    coeff_width  = price_row.iloc[0, 18]  # 20-й столбец
-    coeff_depth  = price_row.iloc[0, 19]  # 21-й столбец
+    # Коэффициенты
+    coeff_height = price_row.iloc[0, 17]
+    coeff_width  = price_row.iloc[0, 18]
+    coeff_depth  = price_row.iloc[0, 19]
 
-    # Считываем текущие размеры
-    try:
-        actual_height = float(height_var.get())
-    except ValueError:
-        actual_height = baz_height
-    try:
-        actual_width = float(width_var.get())
-    except ValueError:
-        actual_width = baz_width
-    try:
-        actual_depth = float(depth_var.get())
-    except ValueError:
-        actual_depth = baz_depth
+    # Текущие размеры
+    try: actual_height = float(height_var.get())
+    except ValueError: actual_height = baz_height
+    try: actual_width = float(width_var.get())
+    except ValueError: actual_width = baz_width
+    try: actual_depth = float(depth_var.get())
+    except ValueError: actual_depth = baz_depth
 
-    # Расчет цены с учетом размеров
-    price = base_price
-    price += ((base_price * coeff_width - base_price) / 100) * round(actual_width - baz_width, 0)
-    price += ((base_price * coeff_height - base_price) / 100) * round(actual_height - baz_height, 0)
+    # === Цена корпуса ===
+    price_corp = base_price
+    price_corp += ((base_price * coeff_width - base_price) / 100) * round(actual_width - baz_width, 0)
+    price_corp += ((base_price * coeff_height - base_price) / 100) * round(actual_height - baz_height, 0)
     if (actual_depth - baz_depth) > 0 and coeff_depth != 0:
-        price += ((base_price * coeff_depth - base_price) / 100) * round(actual_depth - baz_depth, 0)
+        price_corp += ((base_price * coeff_depth - base_price) / 100) * round(actual_depth - baz_depth, 0)
 
-    # Обновляем переменную и метку
-    price_var.set(round(price, 2))
-    price_label.configure(text=f"Цена корпуса: {price:.2f} руб.")
+    # === Цена фурнитуры ===
+    price_furn = 0.0
+    if 'kf_korp' in globals() and 'furn' in globals():
+        kf_rows = kf_korp[kf_korp['name_module'] == selected_module]
+
+        for _, row in kf_rows.iterrows():
+            try:
+                # Берём стандартную фурнитуру и количество
+                name_furn = row['name_furn']
+                quantity = row['quanity']
+
+                # Проверяем условие (если есть)
+                condition = row.get('condition', '')
+                if isinstance(condition, str) and condition.strip():
+                    local_vars = {
+                        "actual_width": actual_width,
+                        "actual_height": actual_height,
+                        "actual_depth": actual_depth
+                    }
+                    if eval(condition, {}, local_vars):
+                        # Подмена фурнитуры и количества
+                        if pd.notna(row.get('name_furn_changed')):
+                            name_furn = row['name_furn_changed']
+                        if pd.notna(row.get('changed_quantity')):
+                            quantity = row['changed_quantity']
+
+                # Получаем цену фурнитуры
+                furn_row = furn[furn['name_furn'].astype(str).str.strip() == str(name_furn).strip()]
+                if not furn_row.empty:
+                    furn_price = furn_row.iloc[0]['price']
+                    if pd.isna(furn_price):
+                        furn_price = 0.0
+                    price_furn += furn_price * quantity
+
+            except Exception as e:
+                print(f"Ошибка при обработке строки kf_korp: {e}")
+
+    # === Общая цена ===
+    total_price = price_corp + price_furn
+
+    # === Обновление меток ===
+    price_var.set(round(total_price, 2))
+    price_label.configure(text=f"Цена корпуса: {price_corp:.2f} руб.")
+    furn_price_var.set(round(price_furn, 2))
+    furn_price_label.configure(text=f"Цена фурнитуры: {price_furn:.2f} руб.")
+    total_price_var.set(round(total_price, 2))  # <-- обновляем итоговую переменную
+    total_price_label.configure(text=f"Цена корпус + фурнитура: {total_price:.2f} руб.")  # <-- обновляем итоговую метку
+
+
+
+
+
+
 
 def update_module_defaults():
     """При выборе модуля подставляем базовые размеры в поля"""
@@ -236,9 +290,6 @@ def update_module_list(*args):
     update_module_defaults()  # <-- Подставляем базовые размеры
     update_price()  # <-- Пересчёт цены с учётом этих размеров
 
-# -----------------
-# Функция добавления в корзину
-# -----------------
 def add_to_cart():
     mod = module_var.get()
     cat = category_var.get()
@@ -257,28 +308,36 @@ def add_to_cart():
     except ValueError:
         depth = 0
     qty = qty_var.get()
-    
+
+    # Берём отдельные цены корпуса и фурнитуры
     try:
-        price = float(price_var.get())
-    except ValueError:
-        price = 0.0
-    total_price = price * qty
-    
+        price_corp = float(price_label.cget("text").split(":")[1].split()[0])
+    except Exception:
+        price_corp = 0.0
+    try:
+        price_furn = float(furn_price_label.cget("text").split(":")[1].split()[0])
+    except Exception:
+        price_furn = 0.0
+
+    total_price = (price_corp + price_furn) * qty
+
     if not mod:
         return
-    
-    # Добавляем размеры в корзину
-    cart.append((mod, cat, typ, fill, height, width, depth, qty, total_price))
-    
+
+    # Добавляем размеры и цены в корзину
+    cart.append((mod, cat, typ, fill, height, width, depth, qty, price_corp, price_furn, total_price))
+
     # Обновляем Treeview
     for item in tree.get_children():
         tree.delete(item)
-    
+
     sum_total = 0
-    for m, c, t, f, h, w, d, q, p in cart:
-        tree.insert("", "end", values=(m, c, t, f, h, w, d, q, f"{p:.2f}"))
-        sum_total += p
+    for m, c, t, f, h, w, d, q, corp_p, furn_p, total_p in cart:
+        tree.insert("", "end", values=(m, c, t, f, h, w, d, q, f"{total_p:.2f}"))
+        sum_total += total_p
+
     total_label.configure(text=f"Итоговая сумма: {sum_total:.2f} руб.")
+
 
 # -----------------
 # Функция удаления выделенного
