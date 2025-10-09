@@ -137,17 +137,15 @@ depth_entry.grid(row=0, column=5)
 height_case_var = tk.StringVar()
 height_case_label = ctk.CTkLabel(size_frame, text="Высота ниши:")
 height_case_entry = ctk.CTkEntry(size_frame, textvariable=height_case_var, width=80)
-height_case_label.grid(row=1, column=0, padx=(0,5))
-height_case_entry.grid(row=1, column=1, padx=(0,15))
 
-# Сначала скрываем, показываем только для модулей с "Да"
-height_case_label.grid_remove()
-height_case_entry.grid_remove()
+# Сначала скрываем
+height_case_label.grid_forget()
+height_case_entry.grid_forget()
 
 
 
 # Сделаем все колонки по центру
-for i in range(6):
+for i in range(8):
     size_frame.grid_columnconfigure(i, weight=1)
 qty_spin = tk.Spinbox(app, from_=1, to=100, textvariable=qty_var, width=5)
 qty_spin.pack(pady=5)
@@ -176,55 +174,56 @@ cart = []
 
 
 
-
-
-
-def update_module_defaults():
+def update_module_defaults(*args):
     """При выборе модуля подставляем базовые размеры в поля"""
     selected_module = module_var.get()
-    if selected_module:
-        row = df[df.iloc[:, 0] == selected_module]
-        if not row.empty:
-            # Подставляем базовые размеры
-            height_var.set(row.iloc[0, 14])
-            width_var.set(row.iloc[0, 15])
-            depth_var.set(row.iloc[0, 16])
-            # Показываем поле "Высота ниши" только если колонка 21 = "Да"
-            if str(row.iloc[0, 20]).strip().lower() == "да":
-                height_case_label.grid()
-                height_case_entry.grid()
-            else:
-                height_case_label.grid_remove()
-                height_case_entry.grid_remove()
+    if not selected_module:
+        return
+    row = df[df.iloc[:, 0] == selected_module]
+    if row.empty:
+        return
+
+    # Подставляем базовые размеры
+    height_var.set(row.iloc[0, 14])
+    width_var.set(row.iloc[0, 15])
+    depth_var.set(row.iloc[0, 16])
+
+    # Проверяем 21-й столбец ("Да" — показываем поле Высота ниши)
+    value_21 = str(row.iloc[0, 20]).strip().lower()
+    if value_21 == "да":
+        # Показываем поле ниши в конце ряда
+        height_case_label.grid(row=0, column=6, padx=(15,5))
+        height_case_entry.grid(row=0, column=7, padx=(0,15))
+        # Устанавливаем значение по умолчанию
+        if not height_case_var.get():  # чтобы не перезаписывать уже введённое
+            height_case_var.set("595")
+    else:
+        height_case_label.grid_forget()
+        height_case_entry.grid_forget()
+
+
+
+
 
 def update_kompl_list(*args):
     """Обновляет список комплектаций в зависимости от выбранного модуля"""
     selected_module = module_var.get()
-
-    # если модуль не выбран или таблицы нет — показываем Комплектация №2
-    if not selected_module or 'kompl' not in globals() or kompl.empty:
+    if not selected_module or kompl.empty:
         kompl_menu.configure(values=["Комплектация №2"])
         kompl_var.set("Комплектация №2")
         return
 
     # фильтруем по выбранному модулю
     rows = kompl[kompl["name_module"].astype(str).str.strip() == str(selected_module).strip()]
-
     if rows.empty:
-        # если нет строк для этого модуля
         values = ["Комплектация №2"]
     else:
-        # собираем все уникальные значения столбца number_kompl (в любом типе)
         values = sorted(rows["number_kompl"].dropna().astype(str).unique().tolist())
-
-        # если пусто — оставляем Комплектация №2
         if not values:
             values = ["Комплектация №2"]
 
     kompl_menu.configure(values=values)
     kompl_var.set(values[0])
-
-
 
 
 def update_module_list(*args):
@@ -263,8 +262,11 @@ def update_module_list(*args):
     module_menu.configure(values=modules)
     if module_var.get() not in modules:
         module_var.set(modules[0] if modules else "")
-    update_module_defaults()  # <-- Подставляем базовые размеры
-    update_price()  # <-- Пересчёт цены с учётом этих размеров
+
+    # Подставляем размеры и обновляем цену
+    update_module_defaults()
+    update_kompl_list()
+    update_price()
 
 def update_price(*args):
     selected_module = module_var.get()
@@ -365,12 +367,13 @@ def update_price(*args):
         # Проверяем, нужно ли для модуля поле "Высота ниши"
         nisha_required = False
         if not df[df.iloc[:, 0] == selected_module].empty:
-            nisha_required = df[df.iloc[:, 0] == selected_module].iloc[0, 20] == "Да"  # 21-я колонка индекс 20
+            nisha_value = df[df.iloc[:, 0] == selected_module].iloc[0, 20]
+            nisha_required = str(nisha_value).strip().lower() == "да"
 
         try:
             nisha_height = 0.0
             if nisha_required:
-                nisha_height = float(height_nisha_var.get()) if height_nisha_var.get() else 0.0
+                nisha_height = float(height_case_var.get()) if height_case_var.get() else 0.0
         except:
             nisha_height = 0.0
 
@@ -381,26 +384,40 @@ def update_price(*args):
 
                 condition = row.get('condition', '')
                 if isinstance(condition, str) and condition.strip():
-                    # передаём в eval и nisha_height, если нужно
                     eval_vars = {
                         "actual_width": actual_width,
                         "actual_height": actual_height,
                         "actual_depth": actual_depth,
                         "nisha_height": nisha_height
                     }
-                    if eval(condition, {}, eval_vars):
-                        # case_1 и case_2, если есть поле "Да"
-                        if nisha_required:
-                            diff = actual_height - nisha_height - 360 - 11
-                            if 960 <= diff <= 1499:  # case_1
+
+                    # --- обработка case_1 / case_2 ---
+                    if "case_1:" in condition or "case_2:" in condition:
+                        try:
+                            parts = condition.split("case_2:")
+                            case_1_expr = parts[0].replace("case_1:", "").strip()
+                            case_2_expr = parts[1].strip() if len(parts) > 1 else ""
+
+                            case_1 = eval(case_1_expr, {}, eval_vars) if case_1_expr else False
+                            case_2 = eval(case_2_expr, {}, eval_vars) if case_2_expr else False
+
+                            if case_1 and pd.notna(row.get('changed_quantity')):
+                                quantity = row['changed_quantity']
+                            elif case_2 and pd.notna(row.get('changed_quantity_case_2')):
+                                quantity = row['changed_quantity_case_2']
+                        except Exception as e:
+                            print(f"Ошибка при обработке case: {e}")
+
+                    # --- обычные условия ---
+                    else:
+                        try:
+                            if eval(condition, {}, eval_vars):
+                                if pd.notna(row.get('name_furn_changed')):
+                                    name_furn = row['name_furn_changed']
                                 if pd.notna(row.get('changed_quantity')):
                                     quantity = row['changed_quantity']
-                            elif 1500 <= diff <= 1859:  # case_2
-                                if pd.notna(row.get('changed_quantity_case_2')):
-                                    quantity = row['changed_quantity_case_2']
-                        # если есть изменённое имя фурнитуры
-                        if pd.notna(row.get('name_furn_changed')):
-                            name_furn = row['name_furn_changed']
+                        except Exception as e:
+                            print(f"Ошибка eval: {e}")
 
                 furn_row = furn[furn['name_furn'].astype(str).str.strip() == str(name_furn).strip()]
                 if not furn_row.empty:
@@ -494,21 +511,27 @@ def remove_selected():
 # -----------------
 # Привязки
 # -----------------
+
+# Фильтры: категория -> тип -> наполнение -> модуль
 category_var.trace_add("write", update_module_list)
 type_var.trace_add("write", update_module_list)
 filling_var.trace_add("write", update_module_list)
 
+# Размеры и цвет -> пересчет цены
 color_var.trace_add("write", update_price)
 height_var.trace_add("write", update_price)
 width_var.trace_add("write", update_price)
 depth_var.trace_add("write", update_price)
+height_case_var.trace_add("write", update_price)  # добавляем для ниши
 
-# Сначала обновляем список комплектаций, потом считаем цену
+# Модуль: сначала подставляем размеры и нишу, потом комплектацию, потом цену
+module_var.trace_add("write", update_module_defaults)
 module_var.trace_add("write", update_kompl_list)
 module_var.trace_add("write", update_price)
 
-# Изменение комплектации тоже пересчитывает цену
+# Изменение комплектации -> пересчет цены
 kompl_var.trace_add("write", update_price)
+
 
 # -----------------
 # Кнопки
@@ -525,5 +548,6 @@ remove_btn.pack(pady=5)
 if df.iloc[:, 1].dropna().tolist():
     category_var.set(df.iloc[:, 1].dropna().astype(str).unique().tolist()[0])
     update_module_list()
+    update_module_defaults()  # <- добавляем
 
 app.mainloop()
