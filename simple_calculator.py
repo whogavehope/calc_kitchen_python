@@ -3,84 +3,75 @@ from tkinter import ttk
 import pandas as pd
 import customtkinter as ctk
 
+# Устанавливаем тему для интерфейса
 ctk.set_appearance_mode("System")
 ctk.set_default_color_theme("blue")
 
 # -----------------
-# Загрузка данных
+# Загрузка данных из Excel
 # -----------------
-# Основная информация по корпусам
-df = pd.read_excel("data.xlsx", sheet_name="modules")
-# Фурнитура корпуса (КФ)
-kf_korp = pd.read_excel("data.xlsx", sheet_name="kf_korp")
-# Цены фурнитуры
-furn = pd.read_excel("data.xlsx", sheet_name="furn")
-# Комплектация
-kompl = pd.read_excel("data.xlsx", sheet_name="kompl")
+# Загружаем данные из разных листов Excel-файла
+df = pd.read_excel("data.xlsx", sheet_name="modules")        # Основная информация по корпусам
+kf_korp = pd.read_excel("data.xlsx", sheet_name="kf_korp")   # Фурнитура корпуса (КФ)
+furn = pd.read_excel("data.xlsx", sheet_name="furn")         # Цены фурнитуры
+kompl = pd.read_excel("data.xlsx", sheet_name="kompl")       # Комплектация
+polki = pd.read_excel("data.xlsx", sheet_name="polki")       # Информация о полках
+
+# Выводим, что находится в столбце "Изделие" на листе "polki"
+print("Столбец 'Изделие' из листа 'polki':")
+print(polki["Изделие"].dropna().tolist())
+
+# Создаём список типов полок (уникальные значения из столбца "Изделие")
+polki_types = polki["Изделие"].dropna().astype(str).unique().tolist()
+print("polki_types:", polki_types)
 
 # -----------------
-# Создание окна
+# Создание основного окна приложения
 # -----------------
 app = ctk.CTk()
-app.geometry("900x650")
+app.geometry("900x900")
 app.title("Калькулятор модулей")
 
 # -----------------
-# Переменные
+# Переменные для хранения выбранных значений
 # -----------------
-module_var = ctk.StringVar()
-category_var = ctk.StringVar()
-type_var = ctk.StringVar()
-filling_var = ctk.StringVar()
-kompl_var = ctk.StringVar() 
-price_var = ctk.StringVar()
-qty_var = tk.IntVar(value=1)
+module_var = ctk.StringVar()      # Выбранный модуль
+category_var = ctk.StringVar()    # Категория
+type_var = ctk.StringVar()        # Тип
+filling_var = ctk.StringVar()     # Наполнение
+kompl_var = ctk.StringVar()       # Комплектация
+price_var = ctk.StringVar()       # Цена
+qty_var = tk.IntVar(value=1)      # Количество
 
-color_var = ctk.StringVar()
+color_var = ctk.StringVar()       # Цвет (базовый/премиум)
 color_values = ["Базовый", "Премиум"]
-color_var.set(color_values[0])  # по умолчанию "Базовый"
+color_var.set(color_values[0])    # По умолчанию "Базовый"
 
 # -----------------
-# Верхние списки
+# Верхние выпадающие списки (категория, тип, наполнение, модуль)
 # -----------------
 category_menu = ctk.CTkOptionMenu(
     app,
-    values=df.iloc[:, 1].dropna().astype(str).unique().tolist(),
+    values=df.iloc[:, 1].dropna().astype(str).unique().tolist(),  # Значения из 2-го столбца
     variable=category_var
 )
 category_menu.pack(pady=5)
 
-type_menu = ctk.CTkOptionMenu(
-    app,
-    values=[],
-    variable=type_var
-)
+type_menu = ctk.CTkOptionMenu(app, values=[], variable=type_var)
 type_menu.pack(pady=5)
 
-filling_menu = ctk.CTkOptionMenu(
-    app,
-    values=[],
-    variable=filling_var
-)
+filling_menu = ctk.CTkOptionMenu(app, values=[], variable=filling_var)
 filling_menu.pack(pady=5)
 
-module_menu = ctk.CTkOptionMenu(
-    app,
-    values=[],
-    variable=module_var
-)
+module_menu = ctk.CTkOptionMenu(app, values=[], variable=module_var)
 module_menu.pack(pady=5)
 
 # -----------------
 # Список цветов
 # -----------------
-
 color_menu = ctk.CTkOptionMenu(app, values=color_values, variable=color_var)
 color_menu.pack(pady=5)
 
-# -----------------
-# Список комплектаций
-# -----------------
 # -----------------
 # Список комплектаций
 # -----------------
@@ -88,11 +79,12 @@ kompl_var = ctk.StringVar()
 kompl_menu = ctk.CTkOptionMenu(app, values=[], variable=kompl_var)
 kompl_menu.pack(pady=5)
 
-
-
-
+# -----------------
+# Метки для отображения цен
+# -----------------
 price_label = ctk.CTkLabel(app, text="Цена корпуса: ")
 price_label.pack(pady=5)
+
 furn_price_var = tk.StringVar(value="0.00")
 furn_price_label = ctk.CTkLabel(app, text="Цена фурнитуры: 0.00 руб.")
 furn_price_label.pack(pady=5)
@@ -101,6 +93,12 @@ kompl_price_var = tk.StringVar(value="0.00")
 kompl_price_label = ctk.CTkLabel(app, text=f"Цена комплектации: {kompl_price_var.get()} руб.")
 kompl_price_label.pack(pady=5)
 
+# -----------------------------------
+# Поле для цены полок
+# -----------------------------------
+polki_price_var = tk.StringVar(value="0.00")
+polki_price_label = ctk.CTkLabel(app, text=f"Цена полок: {polki_price_var.get()} руб.")
+polki_price_label.pack(pady=5)
 
 total_price_var = ctk.StringVar(value="0.00")
 total_price_label = ctk.CTkLabel(app, text=f"Итоговая цена: {total_price_var.get()} руб.")
@@ -112,21 +110,18 @@ total_price_label.pack(pady=5)
 size_frame = ctk.CTkFrame(app)
 size_frame.pack(pady=5)
 
-# Высота
 height_var = tk.StringVar()
 height_label = ctk.CTkLabel(size_frame, text="Высота:")
 height_label.grid(row=0, column=0, padx=(0,5))
 height_entry = ctk.CTkEntry(size_frame, textvariable=height_var, width=80)
 height_entry.grid(row=0, column=1, padx=(0,15))
 
-# Ширина
 width_var = tk.StringVar()
 width_label = ctk.CTkLabel(size_frame, text="Ширина:")
 width_label.grid(row=0, column=2, padx=(0,5))
 width_entry = ctk.CTkEntry(size_frame, textvariable=width_var, width=80)
 width_entry.grid(row=0, column=3, padx=(0,15))
 
-# Глубина
 depth_var = tk.StringVar()
 depth_label = ctk.CTkLabel(size_frame, text="Глубина:")
 depth_label.grid(row=0, column=4, padx=(0,5))
@@ -137,16 +132,36 @@ depth_entry.grid(row=0, column=5)
 height_case_var = tk.StringVar()
 height_case_label = ctk.CTkLabel(size_frame, text="Высота ниши:")
 height_case_entry = ctk.CTkEntry(size_frame, textvariable=height_case_var, width=80)
-
-# Сначала скрываем
 height_case_label.grid_forget()
 height_case_entry.grid_forget()
 
+# -----------------
+# Полки
+# -----------------
+polki_frame = ctk.CTkFrame(app)
+polki_frame.pack(pady=5)
 
+polki_count_label = ctk.CTkLabel(polki_frame, text="Количество полок:")
+polki_count_label.grid(row=0, column=0, padx=(0,5))
 
-# Сделаем все колонки по центру
+polki_count_var = tk.IntVar(value=0)
+polki_count_spin = tk.Spinbox(polki_frame, from_=0, to=0, textvariable=polki_count_var, width=5)
+polki_count_spin.grid(row=0, column=1, padx=(0,15))
+
+polki_type_label = ctk.CTkLabel(polki_frame, text="Тип полки:")
+polki_type_label.grid(row=0, column=2, padx=(0,5))
+
+polki_type_var = ctk.StringVar()
+print("Инициализируем polki_type_menu с:", polki_types)
+polki_type_menu = ctk.CTkOptionMenu(polki_frame, values=polki_types, variable=polki_type_var)
+polki_type_menu.grid(row=0, column=3, padx=(0,15))
+
+# -----------------
+# Спинбокс количества
+# -----------------
 for i in range(8):
     size_frame.grid_columnconfigure(i, weight=1)
+
 qty_spin = tk.Spinbox(app, from_=1, to=100, textvariable=qty_var, width=5)
 qty_spin.pack(pady=5)
 
@@ -155,7 +170,6 @@ qty_spin.pack(pady=5)
 # -----------------
 columns = ("module", "category", "type", "filling", "kompl", "height", "width", "depth", "qty", "price")
 tree = ttk.Treeview(app, columns=columns, show="headings", height=10)
-
 tree.pack(pady=5, fill="x")
 
 for col in columns:
@@ -171,11 +185,23 @@ cart = []
 # Функции
 # -----------------
 
-
-
+def set_polki_type_menu(new_values):
+    """Обновляет выпадающее меню выбора типа полок"""
+    print("set_polki_type_menu получил:", new_values)
+    global polki_type_menu, polki_type_var
+    if hasattr(polki_type_menu, "set_values"):
+        polki_type_menu.set_values(new_values)
+    else:
+        polki_type_menu.grid_forget()
+        polki_type_menu.destroy()
+        polki_type_menu = ctk.CTkOptionMenu(polki_frame, values=new_values, variable=polki_type_var)
+        polki_type_menu.grid(row=0, column=3, padx=(0,15))
+    if new_values:
+        polki_type_var.set(new_values[0])
 
 def update_module_defaults(*args):
-    """При выборе модуля подставляем базовые размеры в поля"""
+    print("update_module_defaults вызван")
+    global polki_type_menu
     selected_module = module_var.get()
     if not selected_module:
         return
@@ -188,22 +214,67 @@ def update_module_defaults(*args):
     width_var.set(row.iloc[0, 15])
     depth_var.set(row.iloc[0, 16])
 
-    # Проверяем 21-й столбец ("Да" — показываем поле Высота ниши)
+    # Проверяем 21-й столбец ("Да" — показываем поле "Высота ниши")
     value_21 = str(row.iloc[0, 20]).strip().lower()
     if value_21 == "да":
-        # Показываем поле ниши в конце ряда
         height_case_label.grid(row=0, column=6, padx=(15,5))
         height_case_entry.grid(row=0, column=7, padx=(0,15))
-        # Устанавливаем значение по умолчанию
-        if not height_case_var.get():  # чтобы не перезаписывать уже введённое
+        if not height_case_var.get():
             height_case_var.set("595")
     else:
         height_case_label.grid_forget()
         height_case_entry.grid_forget()
 
+    # === Полки ===
+    value_min = row.iloc[0, 22]  # столбец 24
+    value_max = row.iloc[0, 23]  # столбец 25
+    value_25 = row.iloc[0, 24]   # столбец 26 (по умолчанию)
 
+    glass_access = str(row.iloc[0, 25]).strip().lower() == "да"
 
+    def safe_int(value):
+        try:
+            s = str(value).strip().lower()
+        except Exception:
+            return 0
+        if s in ["нет", "", "nan", "none"]:
+            return 0
+        try:
+            return int(float(s))
+        except ValueError:
+            return 0
 
+    min_polki = safe_int(value_min)
+    max_polki = safe_int(value_max)
+    if max_polki < min_polki:
+        max_polki = min_polki
+
+    default_polki = safe_int(value_25)
+
+    # Если в столбце 26 пусто или 0 — ставим максимальное значение
+    if pd.isna(value_25) or default_polki == 0:
+        default_polki = max_polki
+    elif default_polki < min_polki:
+        default_polki = min_polki
+    elif default_polki > max_polki:
+        default_polki = max_polki
+
+    # === Обновляем Spinbox ===
+    polki_count_spin.config(from_=min_polki, to=max_polki)
+    print(f"Spinbox обновлён: from={min_polki}, to={max_polki}, default={default_polki}")
+    polki_count_var.set(default_polki)
+
+    # Настройка типа полки
+    available_types = polki_types.copy()
+    if not glass_access:
+        available_types = [t for t in available_types if t != "Стекло"]
+
+    new_values = available_types
+    print("update_module_defaults: передаём в set_polki_type_menu:", new_values)
+    set_polki_type_menu(new_values)
+
+    # === ВАЖНО: вызываем пересчёт цены после обновления полок ===
+    update_price()
 
 def update_kompl_list(*args):
     """Обновляет список комплектаций в зависимости от выбранного модуля"""
@@ -213,7 +284,6 @@ def update_kompl_list(*args):
         kompl_var.set("Комплектация №2")
         return
 
-    # фильтруем по выбранному модулю
     rows = kompl[kompl["name_module"].astype(str).str.strip() == str(selected_module).strip()]
     if rows.empty:
         values = ["Комплектация №2"]
@@ -225,39 +295,32 @@ def update_kompl_list(*args):
     kompl_menu.configure(values=values)
     kompl_var.set(values[0])
 
-
 def update_module_list(*args):
     """Иерархическая фильтрация: category -> type -> filling -> module"""
     filtered_df = df.copy()
 
-    # 1. Фильтруем по категории
     cat = category_var.get()
     if cat:
         filtered_df = filtered_df[filtered_df.iloc[:, 1] == cat]
 
-    # Обновляем список типов
     types = filtered_df.iloc[:, 3].dropna().astype(str).unique().tolist()
     type_menu.configure(values=types)
     if type_var.get() not in types:
         type_var.set(types[0] if types else "")
 
-    # 2. Фильтруем по типу
     typ = type_var.get()
     if typ:
         filtered_df = filtered_df[filtered_df.iloc[:, 3] == typ]
 
-    # Обновляем список наполнений
     fillings = filtered_df.iloc[:, 5].dropna().astype(str).unique().tolist()
     filling_menu.configure(values=fillings)
     if filling_var.get() not in fillings:
         filling_var.set(fillings[0] if fillings else "")
 
-    # 3. Фильтруем по наполнению
     fill = filling_var.get()
     if fill:
         filtered_df = filtered_df[filtered_df.iloc[:, 5] == fill]
 
-    # 4. Обновляем список модулей
     modules = filtered_df.iloc[:, 0].dropna().astype(str).unique().tolist()
     module_menu.configure(values=modules)
     if module_var.get() not in modules:
@@ -269,31 +332,33 @@ def update_module_list(*args):
     update_price()
 
 def update_price(*args):
+    """Рассчитывает и обновляет цену корпуса, фурнитуры, комплектации, полок"""
+    print("update_price вызван")
     selected_module = module_var.get()
     selected_color = color_var.get()
-    selected_kompl = kompl_var.get()  # полный текст: "Комплектация №2", "Комплектация №3Т"
+    selected_kompl = kompl_var.get()
 
     if not selected_module:
         price_var.set(0)
         furn_price_var.set("0.00")
-        kompl_price_var.set("0.00")  # добавлено
+        kompl_price_var.set("0.00")
         total_price_var.set("0.00")
         price_label.configure(text="Цена корпуса: 0.00 руб.")
         furn_price_label.configure(text="Цена фурнитуры: 0.00 руб.")
-        kompl_price_label.configure(text="Цена комплектации: 0.00 руб.")  # добавлено
-        total_price_label.configure(text="Цена корпус + фурнитура + комплектация: 0.00 руб.")  # текст изменен
+        kompl_price_label.configure(text="Цена комплектации: 0.00 руб.")
+        total_price_label.configure(text="Цена корпус + фурнитура + комплектация: 0.00 руб.")
         return
 
     price_row = df[df.iloc[:, 0] == selected_module]
     if price_row.empty:
         price_var.set(0)
         furn_price_var.set("0.00")
-        kompl_price_var.set("0.00")  # добавлено
+        kompl_price_var.set("0.00")
         total_price_var.set("0.00")
         price_label.configure(text="Цена корпуса: 0.00 руб.")
         furn_price_label.configure(text="Цена фурнитуры: 0.00 руб.")
-        kompl_price_label.configure(text="Цена комплектации: 0.00 руб.")  # добавлено
-        total_price_label.configure(text="Цена корпус + фурнитура + комплектация: 0.00 руб.")  # текст изменен
+        kompl_price_label.configure(text="Цена комплектации: 0.00 руб.")
+        total_price_label.configure(text="Цена корпус + фурнитура + комплектация: 0.00 руб.")
         return
 
     # === Базовая цена корпуса ===
@@ -330,7 +395,6 @@ def update_price(*args):
     # === Цена фурнитуры ===
     price_furn = 0.0
 
-    # --- kf_korp ---
     if 'kf_korp' in globals() and 'furn' in globals():
         kf_rows = kf_korp[kf_korp['name_module'] == selected_module]
         for _, row in kf_rows.iterrows():
@@ -356,15 +420,14 @@ def update_price(*args):
             except Exception as e:
                 print(f"Ошибка в kf_korp: {e}")
 
-    # --- kompl ---
-    price_kompl = 0.0  # добавлено
+    # === Цена комплектации ===
+    price_kompl = 0.0
     if 'kompl' in globals() and selected_kompl:
         kompl_rows = kompl[
             (kompl["name_module"].astype(str).str.strip() == str(selected_module).strip()) &
             (kompl["number_kompl"].astype(str).str.strip() == selected_kompl.strip())
         ]
 
-        # Проверяем, нужно ли для модуля поле "Высота ниши"
         nisha_required = False
         if not df[df.iloc[:, 0] == selected_module].empty:
             nisha_value = df[df.iloc[:, 0] == selected_module].iloc[0, 20]
@@ -391,7 +454,6 @@ def update_price(*args):
                         "nisha_height": nisha_height
                     }
 
-                    # --- обработка case_1 / case_2 ---
                     if "case_1:" in condition or "case_2:" in condition:
                         try:
                             parts = condition.split("case_2:")
@@ -408,7 +470,6 @@ def update_price(*args):
                         except Exception as e:
                             print(f"Ошибка при обработке case: {e}")
 
-                    # --- обычные условия ---
                     else:
                         try:
                             if eval(condition, {}, eval_vars):
@@ -427,29 +488,71 @@ def update_price(*args):
             except Exception as e:
                 print(f"Ошибка в kompl: {e}")
 
+    # === Цена полок ===
+    price_polki = 0.0
+
+    try:
+        count_polki = polki_count_var.get()
+        print("count_polki:", count_polki)
+        if count_polki > 0:
+            formula = str(price_row.iloc[0, 26]).strip()
+            print("formula (до исправления):", formula)
+            if not formula or formula.lower() in ["нет", "", "nan"]:
+                formula = "0"
+
+            eval_vars = {
+                "width": actual_width,
+                "depth": actual_depth,
+                "height": actual_height
+            }
+
+            try:
+                area = eval(formula, {}, eval_vars)
+                print("area:", area)
+            except Exception as e:
+                print(f"Ошибка в формуле: {e}")
+                area = 0
+
+            type_selected = polki_type_var.get().strip()
+            print("type_selected:", type_selected)
+            row_polka = polki[polki["Изделие"].astype(str).str.strip() == type_selected.strip()]
+            print("row_polka:", row_polka)
+            if not row_polka.empty:
+                try:
+                    price_m2 = float(row_polka.iloc[0]["Цена,м2"])
+                    print("price_m2:", price_m2)
+                except Exception:
+                    price_m2 = 0
+                    print("price_m2 (ошибка): 0")
+                price_polki = area * price_m2 * count_polki
+                print("price_polki:", price_polki)
+    except Exception as e:
+        print(f"Ошибка при расчете полок: {e}")
+        price_polki = 0
+
     # === Общая цена ===
-    total_price = price_corp + price_furn + price_kompl  # добавлено price_kompl
+    total_price = price_corp + price_furn + price_kompl + price_polki
 
     # === Обновление меток ===
     price_var.set(round(total_price, 2))
     price_label.configure(text=f"Цена корпуса: {price_corp:.2f} руб.")
     furn_price_var.set(round(price_furn, 2))
     furn_price_label.configure(text=f"Цена фурнитуры: {price_furn:.2f} руб.")
-    kompl_price_var.set(round(price_kompl, 2))  # обновляем Label
-    kompl_price_label.configure(text=f"Цена комплектации: {price_kompl:.2f} руб.")  # обновляем Label
+    kompl_price_var.set(round(price_kompl, 2))
+    kompl_price_label.configure(text=f"Цена комплектации: {price_kompl:.2f} руб.")
+    
+    polki_price_var.set(round(price_polki, 2))
+    polki_price_label.configure(text=f"Цена полок: {price_polki:.2f} руб.")
     total_price_var.set(round(total_price, 2))
     total_price_label.configure(text=f"Цена корпус + фурнитура + комплектация: {total_price:.2f} руб.")
 
-
-
-
-
 def add_to_cart():
+    """Добавляет выбранный модуль в корзину"""
     mod = module_var.get()
     cat = category_var.get()
     typ = type_var.get()
     fill = filling_var.get()
-    kompl_value = kompl_var.get()  # выбранная комплектация
+    kompl_value = kompl_var.get()
     try:
         height = float(height_var.get())
     except ValueError:
@@ -464,22 +567,18 @@ def add_to_cart():
         depth = 0
     qty = qty_var.get()
 
-    # Используем total_price_var, который уже содержит цену с комплектацией
     try:
         total_price = float(total_price_var.get())
     except ValueError:
         total_price = 0.0
 
-    # Цена за количество
     total_price_qty = total_price * qty
 
     if not mod:
         return
 
-    # Добавляем в корзину
     cart.append((mod, cat, typ, fill, kompl_value, height, width, depth, qty, total_price_qty))
 
-    # Обновляем Treeview
     for item in tree.get_children():
         tree.delete(item)
 
@@ -490,13 +589,8 @@ def add_to_cart():
 
     total_label.configure(text=f"Итоговая сумма: {sum_total:.2f} руб.")
 
-
-
-
-# -----------------
-# Функция удаления выделенного
-# -----------------
 def remove_selected():
+    """Удаляет выделенный элемент из корзины"""
     selected_item = tree.selection()
     if not selected_item:
         return
@@ -504,34 +598,29 @@ def remove_selected():
     del cart[index]
     tree.delete(selected_item)
     
-    # Суммируем последний элемент кортежа (total_price)
     sum_total = sum(item[-1] for item in cart)
     total_label.configure(text=f"Итоговая сумма: {sum_total:.2f} руб.")
 
 # -----------------
-# Привязки
+# Привязки (реакция на изменения переменных)
 # -----------------
-
-# Фильтры: категория -> тип -> наполнение -> модуль
 category_var.trace_add("write", update_module_list)
 type_var.trace_add("write", update_module_list)
 filling_var.trace_add("write", update_module_list)
 
-# Размеры и цвет -> пересчет цены
 color_var.trace_add("write", update_price)
 height_var.trace_add("write", update_price)
 width_var.trace_add("write", update_price)
 depth_var.trace_add("write", update_price)
-height_case_var.trace_add("write", update_price)  # добавляем для ниши
+height_case_var.trace_add("write", update_price)
 
-# Модуль: сначала подставляем размеры и нишу, потом комплектацию, потом цену
 module_var.trace_add("write", update_module_defaults)
 module_var.trace_add("write", update_kompl_list)
 module_var.trace_add("write", update_price)
+polki_count_var.trace_add("write", update_price)
+polki_type_var.trace_add("write", update_price)
 
-# Изменение комплектации -> пересчет цены
 kompl_var.trace_add("write", update_price)
-
 
 # -----------------
 # Кнопки
@@ -543,11 +632,11 @@ remove_btn = ctk.CTkButton(app, text="Удалить выделенный мод
 remove_btn.pack(pady=5)
 
 # -----------------
-# Инициализация первого фильтра
+# Инициализация
 # -----------------
 if df.iloc[:, 1].dropna().tolist():
     category_var.set(df.iloc[:, 1].dropna().astype(str).unique().tolist()[0])
     update_module_list()
-    update_module_defaults()  # <- добавляем
+    update_module_defaults()
 
 app.mainloop()
