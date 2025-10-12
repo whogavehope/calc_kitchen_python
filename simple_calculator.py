@@ -137,7 +137,7 @@ height_case_entry.grid_forget()
 
 # Переменная для выпадающего списка
 height_case_menu = None  # глобальная переменная
-
+width_menu = None  
 # -----------------
 # Полки
 # -----------------
@@ -204,7 +204,7 @@ def set_polki_type_menu(new_values):
 
 def update_module_defaults(*args):
     print("update_module_defaults вызван")
-    global polki_type_menu, height_case_menu
+    global polki_type_menu, height_case_menu, width_menu
     selected_module = module_var.get()
     if not selected_module:
         return
@@ -212,9 +212,39 @@ def update_module_defaults(*args):
     if row.empty:
         return
 
+    # Проверяем 29-й столбец — "Доступные ширины по умолчанию"
+    width_options_str = str(row.iloc[0, 28]).strip()  # столбец 29
+    if width_options_str and width_options_str.lower() not in ["", "nan", "нет"]:
+        try:
+            width_options = sorted(set(int(x.strip()) for x in width_options_str.split(",")))
+            # Заменяем поле ввода ширины на выпадающий список
+            width_entry.grid_forget()
+            width_var.set(str(width_options[0]))  # устанавливаем первое значение
+            if width_menu:
+                width_menu.destroy()
+            width_menu = ctk.CTkOptionMenu(
+                size_frame,
+                values=[str(x) for x in width_options],
+                variable=width_var
+            )
+            width_menu.grid(row=0, column=3, padx=(0,15))
+        except Exception:
+            # Если ошибка — оставляем поле ввода
+            if width_menu:
+                width_menu.destroy()
+                width_menu = None
+            width_var.set(row.iloc[0, 15])  # базовая ширина
+            width_entry.grid(row=0, column=3, padx=(0,15))
+    else:
+        # Поле ввода
+        if width_menu:
+            width_menu.destroy()
+            width_menu = None
+        width_var.set(row.iloc[0, 15])  # базовая ширина
+        width_entry.grid(row=0, column=3, padx=(0,15))
+
     # Подставляем базовые размеры
     height_var.set(row.iloc[0, 14])
-    width_var.set(row.iloc[0, 15])
     depth_var.set(row.iloc[0, 16])
 
     # Проверяем 21-й столбец ("Да" — показываем поле "Высота ниши")
@@ -224,7 +254,7 @@ def update_module_defaults(*args):
         size_options_str = str(row.iloc[0, 27]).strip()  # столбец 28
         if size_options_str and size_options_str.lower() not in ["", "nan", "нет"]:
             try:
-                options = options = sorted(set(int(x.strip()) for x in size_options_str.split(",")))
+                options = sorted(set(int(x.strip()) for x in size_options_str.split(",")))
                 # Создаём выпадающий список
                 if height_case_menu:
                     height_case_menu.destroy()
@@ -492,6 +522,7 @@ def update_price(*args):
                         "nisha_height": nisha_height
                     }
 
+                    # === Обработка case_1 / case_2 ===
                     if "case_1:" in condition or "case_2:" in condition:
                         try:
                             parts = condition.split("case_2:")
@@ -507,16 +538,16 @@ def update_price(*args):
                                 quantity = row['changed_quantity_case_2']
                         except Exception as e:
                             print(f"Ошибка при обработке case: {e}")
-
+                    # === Обычное условие ===
                     else:
-                        try:
-                            if eval(condition, {}, eval_vars):
-                                if pd.notna(row.get('name_furn_changed')):
-                                    name_furn = row['name_furn_changed']
-                                if pd.notna(row.get('changed_quantity')):
-                                    quantity = row['changed_quantity']
-                        except Exception as e:
-                            print(f"Ошибка eval: {e}")
+                        if eval(condition, {}, eval_vars):
+                            if pd.notna(row.get('name_furn_changed')):
+                                name_furn = row['name_furn_changed']
+                            if pd.notna(row.get('changed_quantity')):
+                                quantity = row['changed_quantity']
+                        else:
+                            continue  # пропускаем, если условие не выполнено
+                # else: ← если условия нет — просто используем фурнитуру (как раньше)
 
                 furn_row = furn[furn['name_furn'].astype(str).str.strip() == str(name_furn).strip()]
                 if not furn_row.empty:
