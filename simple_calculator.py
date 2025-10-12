@@ -135,6 +135,9 @@ height_case_entry = ctk.CTkEntry(size_frame, textvariable=height_case_var, width
 height_case_label.grid_forget()
 height_case_entry.grid_forget()
 
+# Переменная для выпадающего списка
+height_case_menu = None  # глобальная переменная
+
 # -----------------
 # Полки
 # -----------------
@@ -201,7 +204,7 @@ def set_polki_type_menu(new_values):
 
 def update_module_defaults(*args):
     print("update_module_defaults вызван")
-    global polki_type_menu
+    global polki_type_menu, height_case_menu
     selected_module = module_var.get()
     if not selected_module:
         return
@@ -217,13 +220,48 @@ def update_module_defaults(*args):
     # Проверяем 21-й столбец ("Да" — показываем поле "Высота ниши")
     value_21 = str(row.iloc[0, 20]).strip().lower()
     if value_21 == "да":
-        height_case_label.grid(row=0, column=6, padx=(15,5))
-        height_case_entry.grid(row=0, column=7, padx=(0,15))
-        if not height_case_var.get():
-            height_case_var.set("595")
+        # Проверяем 28-й столбец — "Размеры ниши по умолчанию"
+        size_options_str = str(row.iloc[0, 27]).strip()  # столбец 28
+        if size_options_str and size_options_str.lower() not in ["", "nan", "нет"]:
+            try:
+                options = options = sorted(set(int(x.strip()) for x in size_options_str.split(",")))
+                # Создаём выпадающий список
+                if height_case_menu:
+                    height_case_menu.destroy()
+                height_case_menu = ctk.CTkOptionMenu(
+                    size_frame,
+                    values=[str(x) for x in options],
+                    variable=height_case_var
+                )
+                height_case_entry.grid_forget()
+                height_case_label.grid(row=0, column=6, padx=(15,5))
+                height_case_menu.grid(row=0, column=7, padx=(0,15))
+                height_case_var.set(str(options[0]))  # устанавливаем первое значение из Excel
+            except Exception as e:
+                # Если ошибка — всё равно устанавливаем первое значение из Excel
+                if height_case_menu:
+                    height_case_menu.destroy()
+                    height_case_menu = None
+                height_case_label.grid(row=0, column=6, padx=(15,5))
+                height_case_entry.grid(row=0, column=7, padx=(0,15))
+                try:
+                    height_case_var.set(str(options[0]))  # устанавливаем первое значение из Excel
+                except:
+                    height_case_var.set("")  # оставляем пустым
+        else:
+            # Поле ввода, но без 595 — оставляем пустым
+            if height_case_menu:
+                height_case_menu.destroy()
+                height_case_menu = None
+            height_case_label.grid(row=0, column=6, padx=(15,5))
+            height_case_entry.grid(row=0, column=7, padx=(0,15))
+            height_case_var.set("")  # оставляем пустым
     else:
         height_case_label.grid_forget()
         height_case_entry.grid_forget()
+        if height_case_menu:
+            height_case_menu.destroy()
+            height_case_menu = None
 
     # === Полки ===
     value_min = row.iloc[0, 22]  # столбец 24
@@ -346,7 +384,7 @@ def update_price(*args):
         price_label.configure(text="Цена корпуса: 0.00 руб.")
         furn_price_label.configure(text="Цена фурнитуры: 0.00 руб.")
         kompl_price_label.configure(text="Цена комплектации: 0.00 руб.")
-        total_price_label.configure(text="Цена корпус + фурнитура + комплектация: 0.00 руб.")
+        total_price_label.configure(text="Цена корпус + фурнитура + комплектация + полки: 0.00 руб.")
         return
 
     price_row = df[df.iloc[:, 0] == selected_module]
@@ -358,7 +396,7 @@ def update_price(*args):
         price_label.configure(text="Цена корпуса: 0.00 руб.")
         furn_price_label.configure(text="Цена фурнитуры: 0.00 руб.")
         kompl_price_label.configure(text="Цена комплектации: 0.00 руб.")
-        total_price_label.configure(text="Цена корпус + фурнитура + комплектация: 0.00 руб.")
+        total_price_label.configure(text="Цена корпус + фурнитура + комплектация + полки: 0.00 руб.")
         return
 
     # === Базовая цена корпуса ===
@@ -544,7 +582,7 @@ def update_price(*args):
     polki_price_var.set(round(price_polki, 2))
     polki_price_label.configure(text=f"Цена полок: {price_polki:.2f} руб.")
     total_price_var.set(round(total_price, 2))
-    total_price_label.configure(text=f"Цена корпус + фурнитура + комплектация: {total_price:.2f} руб.")
+    total_price_label.configure(text=f"Цена корпус + фурнитура + комплектация + полки: {total_price:.2f} руб.")
 
 def add_to_cart():
     """Добавляет выбранный модуль в корзину"""
