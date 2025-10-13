@@ -16,7 +16,7 @@ kf_korp = pd.read_excel("data.xlsx", sheet_name="kf_korp")   # Фурнитур�
 furn = pd.read_excel("data.xlsx", sheet_name="furn")         # Цены фурнитуры
 kompl = pd.read_excel("data.xlsx", sheet_name="kompl")       # Комплектация
 polki = pd.read_excel("data.xlsx", sheet_name="polki")       # Информация о полках
-
+color_korp = pd.read_excel("data.xlsx", sheet_name="color_korp")  # Информация о цвете корпуса
 # Выводим, что находится в столбце "Изделие" на листе "polki"
 print("Столбец 'Изделие' из листа 'polki':")
 print(polki["Изделие"].dropna().tolist())
@@ -43,9 +43,11 @@ kompl_var = ctk.StringVar()       # Комплектация
 price_var = ctk.StringVar()       # Цена
 qty_var = tk.IntVar(value=1)      # Количество
 
-color_var = ctk.StringVar()       # Цвет (базовый/премиум)
-color_values = ["Базовый", "Премиум"]
-color_var.set(color_values[0])    # По умолчанию "Базовый"
+color_var = ctk.StringVar()       # Цвет (из Excel)
+color_options = color_korp["Цвета"].dropna().astype(str).tolist()  # ← НОВОЕ
+print("color_options:", color_options)
+if color_options:
+    color_var.set(color_options[0])  # По умолчанию первый цвет
 
 # -----------------
 # Верхние выпадающие списки (категория, тип, наполнение, модуль)
@@ -69,7 +71,7 @@ module_menu.pack(pady=5)
 # -----------------
 # Список цветов
 # -----------------
-color_menu = ctk.CTkOptionMenu(app, values=color_values, variable=color_var)
+color_menu = ctk.CTkOptionMenu(app, values=color_options, variable=color_var)
 color_menu.pack(pady=5)
 
 # -----------------
@@ -403,7 +405,13 @@ def update_price(*args):
     """Рассчитывает и обновляет цену корпуса, фурнитуры, комплектации, полок"""
     print("update_price вызван")
     selected_module = module_var.get()
-    selected_color = color_var.get()
+    selected_color_name = color_var.get()
+    # === Определяем категорию цвета ===
+    color_row = color_korp[color_korp["Цвета"] == selected_color_name]
+    if not color_row.empty:
+        color_category = color_row.iloc[0]["Категория"].strip()
+    else:
+        color_category = "Базовый"  # по умолчанию
     selected_kompl = kompl_var.get()
 
     if not selected_module:
@@ -430,7 +438,7 @@ def update_price(*args):
         return
 
     # === Базовая цена корпуса ===
-    base_price_col = 12 if selected_color == "Базовый" else 13
+    base_price_col = 12 if color_category == "Базовый" else 13
     base_price = price_row.iloc[0, base_price_col]
     if pd.isna(base_price):
         base_price = 0.0
