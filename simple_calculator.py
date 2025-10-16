@@ -572,7 +572,14 @@ def update_price(*args):
         count_polki = polki_count_var.get()
         print("count_polki:", count_polki)
         if count_polki > 0:
-            formula = str(price_row.iloc[0, 26]).strip()
+            type_selected = polki_type_var.get().strip()
+            if type_selected == "ЛДСП":
+                col_name = 'Формула_расчета_полок'
+            else:
+                col_name = 'Формула_расчета_стеклянных_полок'
+            print("type_selected:", type_selected)
+            
+            formula = str(price_row.iloc[0][col_name]).strip()
             print("formula (до исправления):", formula)
             if not formula or formula.lower() in ["нет", "", "nan"]:
                 formula = "0"
@@ -590,8 +597,7 @@ def update_price(*args):
                 print(f"Ошибка в формуле: {e}")
                 area = 0
 
-            type_selected = polki_type_var.get().strip()
-            print("type_selected:", type_selected)
+
             row_polka = polki[polki["Изделие"].astype(str).str.strip() == type_selected.strip()]
             print("row_polka:", row_polka)
             if not row_polka.empty:
