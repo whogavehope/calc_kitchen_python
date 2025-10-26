@@ -17,6 +17,9 @@ furn = pd.read_excel("data.xlsx", sheet_name="furn")         # Цены фурн
 kompl = pd.read_excel("data.xlsx", sheet_name="kompl")       # Комплектация
 polki = pd.read_excel("data.xlsx", sheet_name="polki")       # Информация о полках
 color_korp = pd.read_excel("data.xlsx", sheet_name="color_korp")  # Информация о цвете корпуса
+color_fasades = pd.read_excel("data.xlsx", sheet_name="color_fasades")   # Цвета фасадов
+frez = pd.read_excel("data.xlsx", sheet_name="frez")                     # Фрезеровка
+price_collections = pd.read_excel("data.xlsx", sheet_name="price_collections")  # Коллекции и цены
 # Выводим, что находится в столбце "Изделие" на листе "polki"
 print("Столбец 'Изделие' из листа 'polki':")
 print(polki["Изделие"].dropna().tolist())
@@ -45,10 +48,21 @@ qty_var = tk.IntVar(value=1)      # Количество
 
 color_var = ctk.StringVar()       # Цвет (из Excel)
 color_options = color_korp["Цвета"].dropna().astype(str).tolist()  # ← НОВОЕ
+# -----------------
+# Переменные для фасадов
+# -----------------
+collection_var = ctk.StringVar()  # Выбранная коллекция фасада
 print("color_options:", color_options)
 if color_options:
     color_var.set(color_options[0])  # По умолчанию первый цвет
 
+frez_var = ctk.StringVar()  # Выбранная фрезеровка
+
+facade_color_var = ctk.StringVar()  # Выбранный цвет фасада
+
+facade_thickness_var = ctk.StringVar()  # Выбранная толщина фасада
+
+facade_type_var = ctk.StringVar()  # Тип фасада: Глухая / Витрина / Решетка
 # -----------------
 # Верхние выпадающие списки (категория, тип, наполнение, модуль)
 # -----------------
@@ -82,25 +96,72 @@ kompl_menu = ctk.CTkOptionMenu(app, values=[], variable=kompl_var)
 kompl_menu.pack(pady=5)
 
 # -----------------
-# Метки для отображения цен
+# Список коллекций фасадов
+# -----------------
+collection_options = price_collections["Коллекция"].dropna().astype(str).unique().tolist()
+if collection_options:
+    collection_var.set(collection_options[0])  # По умолчанию — первая коллекция
+
+collection_menu = ctk.CTkOptionMenu(app, values=collection_options, variable=collection_var)
+collection_menu.pack(pady=5)
+
+# -----------------
+# Список фрезеровок (зависит от коллекции)
+# -----------------
+frez_menu = ctk.CTkOptionMenu(app, values=[], variable=frez_var)
+frez_menu.pack(pady=5)
+# -----------------
+# Список цветов фасада (зависит от коллекции)
+# -----------------
+facade_color_menu = ctk.CTkOptionMenu(app, values=[], variable=facade_color_var)
+facade_color_menu.pack(pady=5)
+
+# -----------------
+# Список толщин фасадов (зависит от коллекции и фрезеровки)
+# -----------------
+thickness_menu = ctk.CTkOptionMenu(app, values=[], variable=facade_thickness_var)
+thickness_menu.pack(pady=5)
+
+# -----------------
+# Список типов фасада (зависит от коллекции и фрезеровки)
+# -----------------
+facade_type_menu = ctk.CTkOptionMenu(app, values=[], variable=facade_type_var)
+facade_type_menu.pack(pady=5)
+# -----------------
+# Метки для отображения цен корпуса
 # -----------------
 price_label = ctk.CTkLabel(app, text="Цена корпуса: ")
 price_label.pack(pady=5)
-
+# -----------------
+# Метка для цены базового комплекта
+# -----------------
 furn_price_var = tk.StringVar(value="0.00")
 furn_price_label = ctk.CTkLabel(app, text="Цена фурнитуры: 0.00 руб.")
 furn_price_label.pack(pady=5)
-
+# -----------------
+# Метка для комплектации
+# -----------------
 kompl_price_var = tk.StringVar(value="0.00")
 kompl_price_label = ctk.CTkLabel(app, text=f"Цена комплектации: {kompl_price_var.get()} руб.")
 kompl_price_label.pack(pady=5)
-
+# -----------------
+# Метка для площади фасадов
+# -----------------
+facade_area_var = tk.StringVar(value="0.00")
+facade_area_label = ctk.CTkLabel(app, text=f"Площадь фасада: {facade_area_var.get()} м²")
+facade_area_label.pack(pady=5)
 # -----------------------------------
 # Поле для цены полок
 # -----------------------------------
 polki_price_var = tk.StringVar(value="0.00")
 polki_price_label = ctk.CTkLabel(app, text=f"Цена полок: {polki_price_var.get()} руб.")
 polki_price_label.pack(pady=5)
+# -----------------
+# Метка для цены фасадов
+# -----------------
+facade_price_var = tk.StringVar(value="0.00")
+facade_price_label = ctk.CTkLabel(app, text=f"Цена фасадов: {facade_price_var.get()} руб.")
+facade_price_label.pack(pady=5)
 
 total_price_var = ctk.StringVar(value="0.00")
 total_price_label = ctk.CTkLabel(app, text=f"Итоговая цена: {total_price_var.get()} руб.")
@@ -190,6 +251,338 @@ cart = []
 # Функции
 # -----------------
 
+def calculate_facade_area():
+    """Рассчитывает площадь фасада по формуле из Excel"""
+    selected_module = module_var.get()
+    if not selected_module:
+        return 0.0
+
+    # Находим строку модуля
+    row = df[df.iloc[:, 0] == selected_module]
+    if row.empty:
+        return 0.0
+
+    # Получаем формулу
+    formula_col_name = "Формула_расчета_фасадов"
+    if formula_col_name not in df.columns:
+        print(f"⚠️ Столбец '{formula_col_name}' не найден в таблице 'modules'")
+        return 0.0
+
+    formula_raw = row.iloc[0][formula_col_name]
+    if pd.isna(formula_raw) or str(formula_raw).strip().lower() in ["", "нет", "nan"]:
+        return 0.0
+
+    formula = str(formula_raw).strip()
+    print(f"Формула фасада: {formula}")
+
+    # Получаем текущие размеры
+    try:
+        actual_height = float(height_var.get())
+    except (ValueError, AttributeError):
+        actual_height = 0.0
+
+    try:
+        actual_width = float(width_var.get())
+    except (ValueError, AttributeError):
+        actual_width = 0.0
+
+    try:
+        actual_depth = float(depth_var.get())
+    except (ValueError, AttributeError):
+        actual_depth = 0.0
+
+    # Получаем высоту ниши, если есть
+    try:
+        nisha_height = float(height_case_var.get()) if height_case_var.get() else 0.0
+    except (ValueError, AttributeError):
+        nisha_height = 0.0
+
+    # Подготавливаем контекст для eval
+    eval_vars = {
+        "height": actual_height,
+        "width": actual_width,
+        "depth": actual_depth,
+        "nisha": nisha_height  # именно "nisha", как в формуле
+    }
+
+    try:
+        area = eval(formula, {"__builtins__": {}}, eval_vars)
+        # Формулы уже делят на 1000 → результат в м²
+        return float(area)
+    except Exception as e:
+        print(f"❌ Ошибка при расчёте фасада по формуле '{formula}': {e}")
+        return 0.0
+
+def calculate_facade_price():
+    """Рассчитывает цену фасада с учётом всех параметров, включая особенности 'Softline Marine'"""
+    # 1. Получаем входные данные
+    selected_collection = collection_var.get()
+    selected_frez = frez_var.get()
+    selected_color = facade_color_var.get()
+    selected_thickness = facade_thickness_var.get()
+    selected_type = facade_type_var.get()
+
+    if not all([selected_collection, selected_frez, selected_color, selected_thickness, selected_type]):
+        return 0.0
+
+    # 2. Площадь фасада
+    area = calculate_facade_area()
+    if area <= 0:
+        return 0.0
+
+    # 3. Определяем ЦЕНОВУЮ ГРУППУ
+    price_group = None
+
+    if selected_collection == "Softline Marine":
+        # Для Softline Marine — ценовая группа = выбранная фрезеровка
+        price_group = selected_frez.strip()
+        film_category = ""  # ← уточните: нужна ли категория пленки для Softline Marine?
+        # Если нужна — можно взять из color_fasades или frez. Пока оставим как есть.
+    else:
+        # Для всех остальных — берём из color_fasades по цвету и коллекции
+        color_row = color_fasades[
+            (color_fasades["Коллекция"].astype(str).str.strip() == selected_collection.strip()) &
+            (color_fasades["Номер цвета"].astype(str).str.strip() == selected_color.strip())
+        ]
+        if color_row.empty:
+            print(f"⚠️ Цвет '{selected_color}' не найден в коллекции '{selected_collection}'")
+            return 0.0
+
+        price_group_raw = color_row.iloc[0].get("Ценовая группа")
+        film_category_raw = color_row.iloc[0].get("Категория пленки")
+
+        if pd.isna(price_group_raw) or str(price_group_raw).strip().lower() in ["", "nan"]:
+            print(f"⚠️ Не указана 'Ценовая группа' для цвета '{selected_color}'")
+            return 0.0
+
+        price_group = str(price_group_raw).strip()
+        film_category = str(film_category_raw).strip() if pd.notna(film_category_raw) else ""
+
+    # 4. Находим строку в price_collections
+    # Фильтруем по коллекции и ценовой группе
+    filtered_pc = price_collections[
+        (price_collections["Коллекция"].astype(str).str.strip() == selected_collection.strip()) &
+        (price_collections["Ценовая группа"].astype(str).str.strip() == price_group.strip())
+    ]
+
+    # Если есть "Категория пленки" (и не Softline Marine), уточняем фильтр
+    if selected_collection != "Softline Marine" and film_category:
+        filtered_pc = filtered_pc[
+            filtered_pc["Категория пленки"].astype(str).str.strip() == film_category.strip()
+        ]
+
+    if filtered_pc.empty:
+        print(f"⚠️ Не найдена цена: коллекция='{selected_collection}', ценовая группа='{price_group}'"
+              + (f", категория пленки='{film_category}'" if film_category else ""))
+        return 0.0
+
+    row = filtered_pc.iloc[0]
+
+    # 5. Определяем столбец цены по толщине и типу фасада
+    try:
+        thickness = int(float(selected_thickness))
+    except (ValueError, TypeError):
+        thickness = 19
+
+    col = None
+    if selected_type == "Глухая":
+        if thickness == 16:
+            col = "Цена глухих 16 мм"
+        elif thickness in (18, 19):
+            col = "Цена глухих 18_19 мм"
+        elif thickness == 22:
+            col = "Цена глухих 22 мм"
+        else:
+            col = "Цена глухих 18_19 мм"
+    elif selected_type == "Витрина":
+        if thickness == 16:
+            col = "Цена витрин 16 мм"
+        elif thickness in (18, 19):
+            col = "Цена витрин 18_19 мм"
+        elif thickness == 22:
+            col = "Цена витрин 22 мм"
+        else:
+            col = "Цена витрин 18_19 мм"
+    elif selected_type == "Решетка":
+        # Пока как глухая
+        if thickness == 16:
+            col = "Цена глухих 16 мм"
+        elif thickness in (18, 19):
+            col = "Цена глухих 18_19 мм"
+        elif thickness == 22:
+            col = "Цена глухих 22 мм"
+        else:
+            col = "Цена глухих 18_19 мм"
+
+    # 6. Получаем базовую цену за м²
+    if col not in row or pd.isna(row[col]):
+        print(f"⚠️ Столбец '{col}' отсутствует или пуст в price_collections")
+        return 0.0
+
+    base_price_per_m2 = float(row[col])
+
+    # 7. ДОПЛАТА ЗА ФРЕЗЕРОВКУ (если есть)
+    # Ищем в таблице frez столбец с доплатой, например: "Доплата_руб_м2"
+    frez_row = frez[
+        (frez["Коллекция"].astype(str).str.strip() == selected_collection.strip()) &
+        (frez["Фрезеровка"].astype(str).str.strip() == selected_frez.strip())
+    ]
+
+    frez_surcharge = 0.0
+    if not frez_row.empty:
+        surcharge_val = frez_row.iloc[0].get("Доплата_руб_м2")
+        if pd.notna(surcharge_val):
+            try:
+                frez_surcharge = float(surcharge_val)
+            except (ValueError, TypeError):
+                frez_surcharge = 0.0
+
+    # 8. Итоговая цена за м² и общая
+    total_price_per_m2 = base_price_per_m2 + frez_surcharge
+    total_price = total_price_per_m2 * area
+
+    return total_price
+
+def update_frez_list(*args):
+    """Обновляет список фрезеровок и цветов фасада в зависимости от выбранной коллекции"""
+    selected_collection = collection_var.get()
+    
+    # --- Обновление фрезеровок ---
+    if frez.empty or not selected_collection:
+        frez_menu.configure(values=["Без фрезеровки"])
+        frez_var.set("Без фрезеровки")
+    else:
+        filtered_frez = frez[
+            frez["Коллекция"].astype(str).str.strip() == selected_collection.strip()
+        ]
+        frez_options = filtered_frez["Фрезеровка"].dropna().astype(str).unique().tolist() if not filtered_frez.empty else ["Без фрезеровки"]
+        if not frez_options:
+            frez_options = ["Без фрезеровки"]
+        frez_menu.configure(values=frez_options)
+        frez_var.set(frez_options[0])
+
+    # --- Обновление цветов фасада ---
+    update_facade_color_list()
+    # Обновляем толщину фасада
+    update_thickness_list()
+    # Обновляем тип фасада
+    update_facade_type_list()
+    # Пересчёт цены
+    update_price()
+
+def update_facade_color_list(*args):
+    """Обновляет список цветов фасада в зависимости от выбранной коллекции"""
+    selected_collection = collection_var.get()
+    
+    if color_fasades.empty or not selected_collection:
+        color_options = ["Без цвета"]
+    else:
+        # Фильтруем по коллекции
+        filtered_colors = color_fasades[
+            color_fasades["Коллекция"].astype(str).str.strip() == selected_collection.strip()
+        ]
+        if filtered_colors.empty:
+            color_options = ["Без цвета"]
+        else:
+            color_options = filtered_colors["Номер цвета"].dropna().astype(str).unique().tolist()
+            if not color_options:
+                color_options = ["Без цвета"]
+
+    # Обновляем меню
+    facade_color_menu.configure(values=color_options)
+    facade_color_var.set(color_options[0])
+    
+    # Пересчёт цены (для будущего расчёта стоимости фасада)
+    update_price()
+
+def update_thickness_list(*args):
+    """Обновляет список толщин фасада на основе выбранной коллекции и фрезеровки"""
+    selected_collection = collection_var.get()
+    selected_frez = frez_var.get()
+    
+    if frez.empty or not selected_collection or not selected_frez:
+        thickness_options = ["19"]  # значение по умолчанию
+    else:
+        # Фильтруем по коллекции И фрезеровке
+        filtered = frez[
+            (frez["Коллекция"].astype(str).str.strip() == selected_collection.strip()) &
+            (frez["Фрезеровка"].astype(str).str.strip() == selected_frez.strip())
+        ]
+        
+        if filtered.empty:
+            thickness_options = ["19"]
+        else:
+            thicknesses = set()
+            for _, row in filtered.iterrows():
+                t1 = row.get("Толщина 1")
+                t2 = row.get("Толщина 2")
+                
+                # Добавляем Толщину 1, если она есть и не NaN
+                if pd.notna(t1) and str(t1).strip().lower() not in ["", "nan"]:
+                    try:
+                        thicknesses.add(str(int(float(t1))))
+                    except (ValueError, TypeError):
+                        pass
+                
+                # Добавляем Толщину 2, если она есть, не NaN и не 0
+                if pd.notna(t2) and str(t2).strip().lower() not in ["", "nan", "0"]:
+                    try:
+                        thicknesses.add(str(int(float(t2))))
+                    except (ValueError, TypeError):
+                        pass
+            
+            thickness_options = sorted(thicknesses, key=int) if thicknesses else ["19"]
+    
+    # Обновляем меню
+    thickness_menu.configure(values=thickness_options)
+    facade_thickness_var.set(thickness_options[0])
+    
+    # Пересчёт цены (для будущего расчёта)
+    update_price()
+def update_facade_type_list(*args):
+    """Обновляет список типов фасада на основе коллекции и фрезеровки"""
+    selected_collection = collection_var.get()
+    selected_frez = frez_var.get()
+    
+    options = ["Глухая"]  # всегда доступно
+
+    if not frez.empty and selected_collection and selected_frez:
+        # Фильтруем по коллекции и фрезеровке
+        filtered = frez[
+            (frez["Коллекция"].astype(str).str.strip() == selected_collection.strip()) &
+            (frez["Фрезеровка"].astype(str).str.strip() == selected_frez.strip())
+        ]
+
+        if not filtered.empty:
+            # Проверяем значения в первых строках (если несколько — достаточно одной с "Да")
+            has_vitrina = (
+                filtered["Наличие_витрин"]
+                .astype(str)
+                .str.strip()
+                .str.lower()
+                .eq("да")
+                .any()
+            )
+            has_reshetka = (
+                filtered["Наличие_решеток"]
+                .astype(str)
+                .str.strip()
+                .str.lower()
+                .eq("да")
+                .any()
+            )
+
+            if has_vitrina:
+                options.append("Витрина")
+            if has_reshetka:
+                options.append("Решетка")
+
+    # Обновляем меню
+    facade_type_menu.configure(values=options)
+    facade_type_var.set(options[0])
+    
+    # Пересчёт цены (на будущее)
+    update_price()
 def set_polki_type_menu(new_values):
     """Обновляет выпадающее меню выбора типа полок"""
     print("set_polki_type_menu получил:", new_values)
@@ -612,7 +1005,15 @@ def update_price(*args):
     except Exception as e:
         print(f"Ошибка при расчете полок: {e}")
         price_polki = 0
-
+    
+    # === Площадь фасада ===
+    facade_area = calculate_facade_area()
+    facade_area_var.set(f"{facade_area:.2f}")
+    facade_area_label.configure(text=f"Площадь фасада: {facade_area:.2f} м²")
+    # === Цена фасада ===
+    facade_price = calculate_facade_price()
+    facade_price_var.set(f"{facade_price:.2f}")
+    facade_price_label.configure(text=f"Цена фасадов: {facade_price:.2f} руб.")
     # === Общая цена ===
     total_price = price_corp + price_furn + price_kompl + price_polki
 
@@ -704,7 +1105,14 @@ polki_count_var.trace_add("write", update_price)
 polki_type_var.trace_add("write", update_price)
 
 kompl_var.trace_add("write", update_price)
+collection_var.trace_add("write", update_frez_list)
+frez_var.trace_add("write", update_thickness_list)
+frez_var.trace_add("write", update_facade_type_list)  # ← добавили
 
+collection_var.trace_add("write", update_price)
+facade_color_var.trace_add("write", update_price)
+facade_thickness_var.trace_add("write", update_price)
+facade_type_var.trace_add("write", update_price)
 # -----------------
 # Кнопки
 # -----------------
@@ -721,5 +1129,9 @@ if df.iloc[:, 1].dropna().tolist():
     category_var.set(df.iloc[:, 1].dropna().astype(str).unique().tolist()[0])
     update_module_list()
     update_module_defaults()
+    # Инициализация списка фрезеровок
+if collection_options:
+    update_frez_list()
+
 
 app.mainloop()
