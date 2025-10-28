@@ -364,14 +364,13 @@ def calculate_facade_area():
         return 0.0
 
 def calculate_facade_price():
-    """Рассчитывает цену фасада с учётом всех параметров, включая особенности 'Softline Marine'"""
+    """Рассчитывает цену фасада с учётом всех параметров, включая особенности 'Softline Marine', скидку и наценку за сложную фрезеровку/решётку"""
     # 1. Получаем входные данные
     selected_collection = collection_var.get()
     selected_frez = frez_var.get()
     selected_color = facade_color_var.get()
     selected_thickness = facade_thickness_var.get()
     selected_type = facade_type_var.get()
-
     if not all([selected_collection, selected_frez, selected_color, selected_thickness, selected_type]):
         return 0.0
 
@@ -380,14 +379,14 @@ def calculate_facade_price():
     if area <= 0:
         return 0.0
 
-    # 3. Определяем ЦЕНОВУЮ ГРУППУ
+    # 3. Определяем ЦЕНОВУЮ ГРУППУ и СКИДКУ
     price_group = None
-
+    discount = 0.0  # Инициализируем скидку
     if selected_collection == "Softline Marine":
         # Для Softline Marine — ценовая группа = выбранная фрезеровка
         price_group = selected_frez.strip()
         film_category = ""  # ← уточните: нужна ли категория пленки для Softline Marine?
-        # Если нужна — можно взять из color_fasades или frez. Пока оставим как есть.
+        # Скидка для Softline Marine не предусмотрена в текущей логике
     else:
         # Для всех остальных — берём из color_fasades по цвету и коллекции
         color_row = color_fasades[
@@ -398,15 +397,29 @@ def calculate_facade_price():
             print(f"⚠️ Цвет '{selected_color}' не найден в коллекции '{selected_collection}'")
             return 0.0
 
+        # Получаем ценовую группу и скидку
         price_group_raw = color_row.iloc[0].get("Ценовая группа")
         film_category_raw = color_row.iloc[0].get("Категория пленки")
+        discount_raw = color_row.iloc[0].get("Скидка") # <- НОВОЕ: получаем скидку
 
         if pd.isna(price_group_raw) or str(price_group_raw).strip().lower() in ["", "nan"]:
             print(f"⚠️ Не указана 'Ценовая группа' для цвета '{selected_color}'")
             return 0.0
-
         price_group = str(price_group_raw).strip()
         film_category = str(film_category_raw).strip() if pd.notna(film_category_raw) else ""
+
+        # <- НОВОЕ: обработка скидки
+        if pd.notna(discount_raw):
+            try:
+                discount = float(discount_raw)
+                # Ограничиваем скидку от 0 до 1 (например, 0.2 = 20%)
+                discount = max(0.0, min(1.0, discount))
+            except (ValueError, TypeError):
+                print(f"⚠️ Неверное значение скидки '{discount_raw}' для цвета '{selected_color}', устанавливаем 0.")
+                discount = 0.0
+        else:
+            discount = 0.0
+        # <- КОНЕЦ НОВОГО
 
     # 4. Находим строку в price_collections
     # Фильтруем по коллекции и ценовой группе
@@ -414,7 +427,6 @@ def calculate_facade_price():
         (price_collections["Коллекция"].astype(str).str.strip() == selected_collection.strip()) &
         (price_collections["Ценовая группа"].astype(str).str.strip() == price_group.strip())
     ]
-
     # Если есть "Категория пленки" (и не Softline Marine), уточняем фильтр
     if selected_collection != "Softline Marine" and film_category:
         filtered_pc = filtered_pc[
@@ -433,7 +445,6 @@ def calculate_facade_price():
         thickness = int(float(selected_thickness))
     except (ValueError, TypeError):
         thickness = 19
-
     col = None
     if selected_type == "Глухая":
         if thickness == 16:
@@ -468,29 +479,51 @@ def calculate_facade_price():
     if col not in row or pd.isna(row[col]):
         print(f"⚠️ Столбец '{col}' отсутствует или пуст в price_collections")
         return 0.0
-
     base_price_per_m2 = float(row[col])
 
-    # 7. ДОПЛАТА ЗА ФРЕЗЕРОВКУ (если есть)
-    # Ищем в таблице frez столбец с доплатой, например: "Доплата_руб_м2"
+    # 7. ПРИМЕНЯЕМ СКИДКУ К БАЗОВОЙ ЦЕНЕ (до фрезеровки)
+    # <- НОВОЕ: Применяем скидку
+    discounted_price_per_m2 = base_price_per_m2 * (1 - discount)
+    print(f"Базовая цена: {base_price_per_m2}, Скидка: {discount*100}%, Цена после скидки: {discounted_price_per_m2}")
+    # <- КОНЕЦ НОВОГО
+
+    # 8. ДОПЛАТА ЗА ФРЕЗЕРОВКУ И ПРОВЕРКА ТИПА ФРЕЗЕРОВКИ / ТИПА ФАСАДА
     frez_row = frez[
         (frez["Коллекция"].astype(str).str.strip() == selected_collection.strip()) &
         (frez["Фрезеровка"].astype(str).str.strip() == selected_frez.strip())
     ]
-
     frez_surcharge = 0.0
-    if not frez_row.empty:
+    is_complex_frez = False  # флаг для "Сложной" фрезеровки или "Решетки"
+
+    # Проверка типа фасада: "Решетка" всегда "Сложная"
+    if selected_type == "Решетка":
+        is_complex_frez = True
+        print(f"Фасад типа '{selected_type}' считается 'Сложной' фрезеровкой.")
+    elif not frez_row.empty:
+        # --- Проверка типа фрезеровки для НЕ-решетки ---
+        frez_type = frez_row.iloc[0].get("Тип Фрезеровки")
+        if pd.notna(frez_type) and str(frez_type).strip().lower() == "сложная":
+            is_complex_frez = True
+        # --- Доплата за фрезеровку (обычная, не 25%) ---
         surcharge_val = frez_row.iloc[0].get("Доплата_руб_м2")
         if pd.notna(surcharge_val):
             try:
                 frez_surcharge = float(surcharge_val)
             except (ValueError, TypeError):
                 frez_surcharge = 0.0
+    # else: для Softline Marine или если фрезеровка не найдена, is_complex_frez остаётся False, frez_surcharge = 0
 
-    # 8. Итоговая цена за м² и общая
-    total_price_per_m2 = base_price_per_m2 + frez_surcharge
+    # 9. РАСЧЁТ ИТОГОВОЙ ЦЕНЫ ЗА М² (с учётом наценки за сложность)
+    # Наценка за сложную фрезеровку (или решётку) = 25% от цены со скидкой
+    complex_frez_surcharge_per_m2 = 0.0
+    if is_complex_frez:
+        complex_frez_surcharge_per_m2 = discounted_price_per_m2 * 0.25
+        print(f"Применена наценка за 'Сложную' фрезеровку/Решетку: {complex_frez_surcharge_per_m2:.2f} руб/м2")
+
+    # Итоговая цена за м² = цена со скидкой + обычная доплата за фрезеровку + наценка за сложность
+    total_price_per_m2 = discounted_price_per_m2 + frez_surcharge + complex_frez_surcharge_per_m2
     total_price = total_price_per_m2 * area
-
+    # <- КОНЕЦ ИЗМЕНЕНИЯ
     return total_price
 
 def update_frez_list(*args):
