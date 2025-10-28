@@ -63,37 +63,46 @@ facade_color_var = ctk.StringVar()  # Выбранный цвет фасада
 facade_thickness_var = ctk.StringVar()  # Выбранная толщина фасада
 
 facade_type_var = ctk.StringVar()  # Тип фасада: Глухая / Витрина / Решетка
+
+
+
+
+# -----------------
+# Фрейм для размещения меню в сетке (2 колонки)
+# -----------------
+menu_frame = ctk.CTkFrame(app)
+menu_frame.pack(pady=10, padx=10, fill="x")
 # -----------------
 # Верхние выпадающие списки (категория, тип, наполнение, модуль)
 # -----------------
 category_menu = ctk.CTkOptionMenu(
-    app,
+    menu_frame,
     values=df.iloc[:, 1].dropna().astype(str).unique().tolist(),  # Значения из 2-го столбца
     variable=category_var
 )
-category_menu.pack(pady=5)
+#category_menu.pack(pady=5)
 
-type_menu = ctk.CTkOptionMenu(app, values=[], variable=type_var)
-type_menu.pack(pady=5)
+type_menu = ctk.CTkOptionMenu(menu_frame, values=[], variable=type_var)
+#type_menu.pack(pady=5)
 
-filling_menu = ctk.CTkOptionMenu(app, values=[], variable=filling_var)
-filling_menu.pack(pady=5)
+filling_menu = ctk.CTkOptionMenu(menu_frame, values=[], variable=filling_var)
+#filling_menu.pack(pady=5)
 
-module_menu = ctk.CTkOptionMenu(app, values=[], variable=module_var)
-module_menu.pack(pady=5)
+module_menu = ctk.CTkOptionMenu(menu_frame, values=[], variable=module_var)
+#module_menu.pack(pady=5)
 
 # -----------------
 # Список цветов
 # -----------------
-color_menu = ctk.CTkOptionMenu(app, values=color_options, variable=color_var)
-color_menu.pack(pady=5)
+color_menu = ctk.CTkOptionMenu(menu_frame, values=color_options, variable=color_var)
+#color_menu.pack(pady=5)
 
 # -----------------
 # Список комплектаций
 # -----------------
 kompl_var = ctk.StringVar()
-kompl_menu = ctk.CTkOptionMenu(app, values=[], variable=kompl_var)
-kompl_menu.pack(pady=5)
+kompl_menu = ctk.CTkOptionMenu(menu_frame, values=[], variable=kompl_var)
+#kompl_menu.pack(pady=5)
 
 # -----------------
 # Список коллекций фасадов
@@ -101,68 +110,109 @@ kompl_menu.pack(pady=5)
 collection_options = price_collections["Коллекция"].dropna().astype(str).unique().tolist()
 if collection_options:
     collection_var.set(collection_options[0])  # По умолчанию — первая коллекция
-
-collection_menu = ctk.CTkOptionMenu(app, values=collection_options, variable=collection_var)
-collection_menu.pack(pady=5)
-
+collection_menu = ctk.CTkOptionMenu(menu_frame, values=collection_options, variable=collection_var)
 # -----------------
 # Список фрезеровок (зависит от коллекции)
 # -----------------
-frez_menu = ctk.CTkOptionMenu(app, values=[], variable=frez_var)
-frez_menu.pack(pady=5)
+frez_menu = ctk.CTkOptionMenu(menu_frame, values=[], variable=frez_var)
 # -----------------
 # Список цветов фасада (зависит от коллекции)
 # -----------------
-facade_color_menu = ctk.CTkOptionMenu(app, values=[], variable=facade_color_var)
-facade_color_menu.pack(pady=5)
-
+facade_color_menu = ctk.CTkOptionMenu(menu_frame, values=[], variable=facade_color_var)
 # -----------------
 # Список толщин фасадов (зависит от коллекции и фрезеровки)
 # -----------------
-thickness_menu = ctk.CTkOptionMenu(app, values=[], variable=facade_thickness_var)
-thickness_menu.pack(pady=5)
-
+thickness_menu = ctk.CTkOptionMenu(menu_frame, values=[], variable=facade_thickness_var)
 # -----------------
 # Список типов фасада (зависит от коллекции и фрезеровки)
 # -----------------
-facade_type_menu = ctk.CTkOptionMenu(app, values=[], variable=facade_type_var)
-facade_type_menu.pack(pady=5)
+facade_type_menu = ctk.CTkOptionMenu(menu_frame, values=[], variable=facade_type_var)
+
+# === Левая колонка: корпус ===
+row = 0
+for label_text, menu_widget in [
+    ("Категория:", category_menu),
+    ("Тип:", type_menu),
+    ("Наполнение:", filling_menu),
+    ("Модуль:", module_menu),
+    ("Цвет корпуса:", color_menu),
+    ("Комплектация:", kompl_menu),
+]:
+    label = ctk.CTkLabel(menu_frame, text=label_text)
+    label.grid(row=row, column=0, padx=(10, 5), pady=3, sticky="e")
+    menu_widget.grid(row=row, column=1, padx=(5, 20), pady=3, sticky="w")
+    row += 1
+
+# === Правая колонка: фасад ===
+row = 0
+for label_text, menu_widget in [
+    ("Коллекция фасада:", collection_menu),
+    ("Фрезеровка:", frez_menu),
+    ("Цвет фасада:", facade_color_menu),
+    ("Толщина фасада:", thickness_menu),
+    ("Тип фасада:", facade_type_menu),
+]:
+    label = ctk.CTkLabel(menu_frame, text=label_text)
+    label.grid(row=row, column=2, padx=(10, 5), pady=3, sticky="e")
+    menu_widget.grid(row=row, column=3, padx=(5, 10), pady=3, sticky="w")
+    row += 1
+
+# -----------------
+# Фрейм для размещения лейблов в сетке (2 колонки)
+# -----------------
+label_frame = ctk.CTkFrame(app)
+label_frame.pack(pady=10, padx=10, fill="x")
+
 # -----------------
 # Метки для отображения цен корпуса
 # -----------------
-price_label = ctk.CTkLabel(app, text="Цена корпуса: ")
-price_label.pack(pady=5)
+price_label = ctk.CTkLabel(label_frame, text="Цена корпуса: ")
+price_label.grid(row=row, column=0, padx=(10, 20), pady=3, sticky="w")
+row +=1
 # -----------------
 # Метка для цены базового комплекта
 # -----------------
 furn_price_var = tk.StringVar(value="0.00")
-furn_price_label = ctk.CTkLabel(app, text="Цена фурнитуры: 0.00 руб.")
-furn_price_label.pack(pady=5)
+furn_price_label = ctk.CTkLabel(label_frame, text="Цена фурнитуры: 0.00 руб.")
+furn_price_label.grid(row=row, column=0, padx=(10, 20), pady=3, sticky="w")
+row +=1
 # -----------------
 # Метка для комплектации
 # -----------------
 kompl_price_var = tk.StringVar(value="0.00")
-kompl_price_label = ctk.CTkLabel(app, text=f"Цена комплектации: {kompl_price_var.get()} руб.")
-kompl_price_label.pack(pady=5)
-# -----------------
-# Метка для площади фасадов
-# -----------------
-facade_area_var = tk.StringVar(value="0.00")
-facade_area_label = ctk.CTkLabel(app, text=f"Площадь фасада: {facade_area_var.get()} м²")
-facade_area_label.pack(pady=5)
+kompl_price_label = ctk.CTkLabel(label_frame, text=f"Цена комплектации: {kompl_price_var.get()} руб.")
+kompl_price_label.grid(row=row, column=0, padx=(10, 20), pady=3, sticky="w")
+row +=1
+
 # -----------------------------------
 # Поле для цены полок
 # -----------------------------------
 polki_price_var = tk.StringVar(value="0.00")
-polki_price_label = ctk.CTkLabel(app, text=f"Цена полок: {polki_price_var.get()} руб.")
-polki_price_label.pack(pady=5)
+polki_price_label = ctk.CTkLabel(label_frame, text=f"Цена полок: {polki_price_var.get()} руб.")
+polki_price_label.grid(row=row, column=0, padx=(10, 20), pady=3, sticky="w")
+row +=1
+
+
+# -----------------
+# Метка для площади фасадов
+# -----------------
+facade_area_var = tk.StringVar(value="0.00")
+facade_area_label = ctk.CTkLabel(label_frame, text=f"Площадь фасада: {facade_area_var.get()} м²")
+facade_area_label.grid(row=row, column=1, padx=(10, 20), pady=3, sticky="w")
+row =1
+
 # -----------------
 # Метка для цены фасадов
 # -----------------
 facade_price_var = tk.StringVar(value="0.00")
-facade_price_label = ctk.CTkLabel(app, text=f"Цена фасадов: {facade_price_var.get()} руб.")
-facade_price_label.pack(pady=5)
+facade_price_label = ctk.CTkLabel(label_frame, text=f"Цена фасадов: {facade_price_var.get()} руб.")
+facade_price_label.grid(row=row, column=1, padx=(10, 20), pady=3, sticky="w")
+row +=1
 
+
+# -----------------
+# Метка для итоговой цены
+# -----------------
 total_price_var = ctk.StringVar(value="0.00")
 total_price_label = ctk.CTkLabel(app, text=f"Итоговая цена: {total_price_var.get()} руб.")
 total_price_label.pack(pady=5)
