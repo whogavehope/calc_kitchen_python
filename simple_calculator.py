@@ -20,6 +20,7 @@ color_korp = pd.read_excel("data.xlsx", sheet_name="color_korp")  # Информ
 color_fasades = pd.read_excel("data.xlsx", sheet_name="color_fasades")   # Цвета фасадов
 frez = pd.read_excel("data.xlsx", sheet_name="frez")                     # Фрезеровка
 price_collections = pd.read_excel("data.xlsx", sheet_name="price_collections")  # Коллекции и цены
+grass = pd.read_excel("data.xlsx", sheet_name="grass") # Цвета стекла и цены
 # Выводим, что находится в столбце "Изделие" на листе "polki"
 print("Столбец 'Изделие' из листа 'polki':")
 print(polki["Изделие"].dropna().tolist())
@@ -64,6 +65,7 @@ facade_thickness_var = ctk.StringVar()  # Выбранная толщина фа
 
 facade_type_var = ctk.StringVar()  # Тип фасада: Глухая / Витрина / Решетка
 
+grass_color_var = ctk.StringVar() # Выбранный цвет стекла
 
 
 
@@ -128,6 +130,7 @@ thickness_menu = ctk.CTkOptionMenu(menu_frame, values=[], variable=facade_thickn
 # -----------------
 facade_type_menu = ctk.CTkOptionMenu(menu_frame, values=[], variable=facade_type_var)
 
+
 # === Левая колонка: корпус ===
 row = 0
 for label_text, menu_widget in [
@@ -157,6 +160,22 @@ for label_text, menu_widget in [
     menu_widget.grid(row=row, column=3, padx=(5, 10), pady=3, sticky="w")
     row += 1
 
+
+# -----------------
+# Список цветов стекла
+# -----------------
+
+# Создаём метку и размещаем виджет для цвета стекла, но изначально скрываем его
+grass_color_label = ctk.CTkLabel(menu_frame, text="Цвет стекла:")
+# Размещаем их в следующей строке, но изначально "не показываем"
+# Это можно сделать, разместив и сразу вызвав grid_remove или используя grid_forget.
+# Но проще в данном случае использовать pack для самого grass_color_menu отдельно.
+# Однако, для согласованности с grid, разместим их, но не будем показывать изначально.
+# Используем grid_forget для скрытия.
+grass_color_label.grid(row=row, column=2, padx=(10, 5), pady=3, sticky="e")
+grass_color_menu.grid(row=row, column=3, padx=(5, 10), pady=3, sticky="w")
+grass_color_label.grid_forget() # Скрываем метку
+grass_color_menu.grid_forget()  # Скрываем меню
 # -----------------
 # Фрейм для размещения лейблов в сетке (2 колонки)
 # -----------------
@@ -382,7 +401,7 @@ def calculate_facade_price():
     # 3. Определяем ЦЕНОВУЮ ГРУППУ и СКИДКУ
     price_group = None
     discount = 0.0  # Инициализируем скидку
-    if selected_collection == "Softline Marine":
+    if selected_collection == "Softline Marine" :
         # Для Softline Marine — ценовая группа = выбранная фрезеровка
         price_group = selected_frez.strip()
         film_category = ""  # ← уточните: нужна ли категория пленки для Softline Marine?
@@ -453,6 +472,8 @@ def calculate_facade_price():
             col = "Цена глухих 18_19 мм"
         elif thickness == 22:
             col = "Цена глухих 22 мм"
+        elif thickness == 20:
+            col = "Цена глухих 22 мм"
         else:
             col = "Цена глухих 18_19 мм"
     elif selected_type == "Витрина":
@@ -461,6 +482,8 @@ def calculate_facade_price():
         elif thickness in (18, 19):
             col = "Цена витрин 18_19 мм"
         elif thickness == 22:
+            col = "Цена витрин 22 мм"
+        elif thickness == 20:
             col = "Цена витрин 22 мм"
         else:
             col = "Цена витрин 18_19 мм"
@@ -471,6 +494,8 @@ def calculate_facade_price():
         elif thickness in (18, 19):
             col = "Цена глухих 18_19 мм"
         elif thickness == 22:
+            col = "Цена глухих 22 мм"
+        elif thickness == 20:
             col = "Цена глухих 22 мм"
         else:
             col = "Цена глухих 18_19 мм"
@@ -522,8 +547,38 @@ def calculate_facade_price():
 
     # Итоговая цена за м² = цена со скидкой + обычная доплата за фрезеровку + наценка за сложность
     total_price_per_m2 = discounted_price_per_m2 + frez_surcharge + complex_frez_surcharge_per_m2
-    total_price = total_price_per_m2 * area
-    # <- КОНЕЦ ИЗМЕНЕНИЯ
+    total_price_before_grass = total_price_per_m2 * area
+
+
+    # 10. Рассчитываем цену стекла (НОВОЕ)
+    grass_price = 0.0
+    selected_type = facade_type_var.get() # Получаем тип фасада
+    selected_grass_color = grass_color_var.get() # <- НОВОЕ: получаем цвет стекла
+    if selected_type in ["Витрина", "Решетка"] and selected_grass_color:
+        # Найдём строку в таблице grass по цвету
+        grass_row = grass[grass["Цвет стекла"].astype(str).str.strip() == selected_grass_color.strip()]
+        if not grass_row.empty:
+            grass_price_per_m2_raw = grass_row.iloc[0]["Цена"]
+            if pd.notna(grass_price_per_m2_raw):
+                try:
+                    grass_price_per_m2 = float(grass_price_per_m2_raw)
+                    area = calculate_facade_area() # Пересчитываем площадь
+                    grass_price = grass_price_per_m2 * area
+                    print(f"Цена стекла ({selected_grass_color}) за м²: {grass_price_per_m2}, за {area:.2f} м²: {grass_price:.2f}")
+                except ValueError:
+                    print(f"⚠️ Неверный формат цены стекла: {grass_price_per_m2_raw}, используем 0")
+                    grass_price = 0.0
+            else:
+                print(f"⚠️ Цена стекла для цвета '{selected_grass_color}' не указана, используем 0")
+                grass_price = 0.0
+        else:
+            print(f"⚠️ Цвет стекла '{selected_grass_color}' не найден в таблице 'grass', используем 0")
+    else:
+        print("Тип фасада не требует стекла или цвет стекла не выбран, цена стекла = 0.")
+    # 11. Итоговая цена фасада (до добавления стекла) = (цена без стекла за м² * площадь)
+    total_price_before_grass = total_price_per_m2 * area # Переименовываем для ясности
+    # 12. Итоговая цена фасада = цена без стекла + цена стекла
+    total_price = total_price_before_grass + grass_price # <- ИЗМЕНЕНО: теперь total_price включает стекло
     return total_price
 
 def update_frez_list(*args):
@@ -626,8 +681,13 @@ def update_facade_type_list(*args):
     """Обновляет список типов фасада на основе коллекции и фрезеровки"""
     selected_collection = collection_var.get()
     selected_frez = frez_var.get()
-    
-    options = ["Глухая"]  # всегда доступно
+
+    # Начинаем список опций, учитывая коллекцию
+    if selected_collection.strip().lower() == "frame": # Проверяем, если коллекция "Frame"
+        options = [] # Начинаем с пустого списка, "Глухая" не добавляется
+        print(f"Коллекция '{selected_collection}' не поддерживает тип 'Глухая'.") # Опциональный вывод
+    else:
+        options = ["Глухая"] # для других коллекций "Глухая" доступна
 
     if not frez.empty and selected_collection and selected_frez:
         # Фильтруем по коллекции и фрезеровке
@@ -635,37 +695,46 @@ def update_facade_type_list(*args):
             (frez["Коллекция"].astype(str).str.strip() == selected_collection.strip()) &
             (frez["Фрезеровка"].astype(str).str.strip() == selected_frez.strip())
         ]
-
         if not filtered.empty:
             # Проверяем значения в первых строках (если несколько — достаточно одной с "Да")
-            has_vitrina = (
-                filtered["Наличие_витрин"]
-                .astype(str)
-                .str.strip()
-                .str.lower()
-                .eq("да")
-                .any()
-            )
-            has_reshetka = (
-                filtered["Наличие_решеток"]
-                .astype(str)
-                .str.strip()
-                .str.lower()
-                .eq("да")
-                .any()
-            )
-
+            has_vitrina = (filtered["Наличие_витрин"].astype(str).str.strip().str.lower().eq("да").any())
+            has_reshetka = (filtered["Наличие_решеток"].astype(str).str.strip().str.lower().eq("да").any())
             if has_vitrina:
                 options.append("Витрина")
             if has_reshetka:
                 options.append("Решетка")
 
-    # Обновляем меню
+    # Обновляем меню типов фасада
     facade_type_menu.configure(values=options)
-    facade_type_var.set(options[0])
-    
+    if options: # Убедимся, что список не пуст
+        facade_type_var.set(options[0])
+    else: # Если пуст, можно установить пустое значение или любое другое поведение по умолчанию
+        facade_type_var.set("") # или другое значение по умолчанию
+        print("Для выбранной коллекции и фрезеровки нет доступных типов фасада.")
+
+    # - НОВОЕ: Управление видимостью и содержимым меню цвета стекла -
+    selected_type = facade_type_var.get()
+    if selected_type in ["Витрина", "Решетка"]:
+        # Получаем уникальные цвета из таблицы grass
+        grass_color_options = grass["Цвет стекла"].dropna().astype(str).unique().tolist()
+        grass_color_menu.configure(values=grass_color_options)
+        if grass_color_options:
+            grass_color_var.set(grass_color_options[0]) # Устанавливаем первый цвет по умолчанию
+        else:
+            grass_color_var.set("") # или другое значение по умолчанию
+        # Показываем меню (размещаем под остальными виджетами в menu_frame)
+        grass_color_menu.pack(pady=5, padx=10, fill="x")
+        print(f"Меню выбора цвета стекла показано. Доступные цвета: {grass_color_options}")
+    else:
+        # Скрываем меню (удаляем из сетки размещения)
+        grass_color_menu.pack_forget()
+        grass_color_var.set("") # Сбрасываем выбор
+        print("Меню выбора цвета стекла скрыто.")
+    # - /НОВОЕ -
+
     # Пересчёт цены (на будущее)
     update_price()
+
 def set_polki_type_menu(new_values):
     """Обновляет выпадающее меню выбора типа полок"""
     print("set_polki_type_menu получил:", new_values)
