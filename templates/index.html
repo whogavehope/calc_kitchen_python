@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Калькулятор модулей</title>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; background-color: #f5f5f5; }
+        .container { max-width: 1200px; margin: 0 auto; background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        .menu-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px; }
+        .menu-column { display: flex; flex-direction: column; gap: 10px; }
+        .form-group { display: flex; flex-direction: column; gap: 5px; }
+        label { font-weight: bold; }
+        select, input { padding: 8px; border: 1px solid #ddd; border-radius: 4px; }
+        .price-display { background: #f8f9fa; padding: 15px; border-radius: 5px; margin: 10px 0; }
+        .price-row { display: flex; justify-content: space-between; margin: 5px 0; }
+        .cart { margin-top: 20px; }
+        table { width: 100%; border-collapse: collapse; margin: 10px 0; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        th { background-color: #f2f2f2; }
+        button { background: #007bff; color: white; border: none; padding: 10px 15px; border-radius: 4px; cursor: pointer; }
+        button:hover { background: #0056b3; }
+        .total { font-size: 1.2em; font-weight: bold; margin: 10px 0; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Калькулятор модулей</h1>
+        
+        <div class="menu-grid">
+            <!-- Левая колонка: корпус -->
+            <div class="menu-column">
+                <h3>Корпус</h3>
+                <div class="form-group">
+                    <label for="category">Категория:</label>
+                    <select id="category" onchange="updateTypes()">
+                        {% for category in categories %}
+                        <option value="{{ category }}" {% if category == default_category %}selected{% endif %}>{{ category }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="type">Тип:</label>
+                    <select id="type" onchange="updateFillings()"></select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="filling">Наполнение:</label>
+                    <select id="filling" onchange="updateModules()"></select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="module">Модуль:</label>
+                    <select id="module" onchange="updateModuleDefaults()"></select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="color">Цвет корпуса:</label>
+                    <select id="color" onchange="updatePrice()">
+                        {% for color in color_options %}
+                        <option value="{{ color }}">{{ color }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="kompl">Комплектация:</label>
+                    <select id="kompl" onchange="updatePrice()"></select>
+                </div>
+            </div>
+            
+            <!-- Правая колонка: фасад -->
+            <div class="menu-column">
+                <h3>Фасад</h3>
+                <div class="form-group">
+                    <label for="collection">Коллекция фасада:</label>
+                    <select id="collection" onchange="updateFrez()">
+                        {% for collection in collection_options %}
+                        <option value="{{ collection }}">{{ collection }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="frez">Фрезеровка:</label>
+                    <select id="frez" onchange="updateThickness()"></select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="facade_color">Цвет фасада:</label>
+                    <select id="facade_color" onchange="updatePrice()"></select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="thickness">Толщина фасада:</label>
+                    <select id="thickness" onchange="updateFacadeTypes()"></select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="facade_type">Тип фасада:</label>
+                    <select id="facade_type" onchange="updateGrassColors()"></select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="grass_color">Цвет стекла для фасада:</label>
+                    <select id="grass_color" onchange="updatePrice()"></select>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Размеры -->
+        <div class="form-group">
+            <h3>Размеры</h3>
+            <div style="display: flex; gap: 15px; flex-wrap: wrap;">
+                <div>
+                    <label for="height">Высота:</label>
+                    <input type="number" id="height" step="0.1" onchange="updatePrice()">
+                </div>
+                <div>
+                    <label for="width">Ширина:</label>
+                    <div id="width-container">
+                        <input type="number" id="width" step="0.1" onchange="updatePrice()">
+                    </div>
+                </div>
+                <div>
+                    <label for="depth">Глубина:</label>
+                    <input type="number" id="depth" step="0.1" onchange="updatePrice()">
+                </div>
+                <div id="nisha-container" style="display: none;">
+                    <label for="nisha_height">Высота ниши:</label>
+                    <div id="nisha-input-container">
+                        <input type="number" id="nisha_height" step="0.1" onchange="updatePrice()">
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Полки -->
+        <div class="form-group">
+            <h3>Полки</h3>
+            <div style="display: flex; gap: 15px; align-items: end;">
+                <div>
+                    <label for="polki_count">Количество полок:</label>
+                    <input type="number" id="polki_count" min="0" value="0" onchange="updatePrice()">
+                </div>
+                <div>
+                    <label for="polki_type">Тип полки:</label>
+                    <select id="polki_type" onchange="updatePrice()">
+                        {% for type in polki_types %}
+                        <option value="{{ type }}">{{ type }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Количество -->
+        <div class="form-group">
+            <label for="qty">Количество:</label>
+            <input type="number" id="qty" min="1" value="1">
+        </div>
+        
+        <!-- Цены -->
+        <div class="price-display">
+            <h3>Расчет цены</h3>
+            <div class="price-row">
+                <span>Цена корпуса:</span>
+                <span id="price_corp">0.00 руб.</span>
+            </div>
+            <div class="price-row">
+                <span>Цена фурнитуры:</span>
+                <span id="price_furn">0.00 руб.</span>
+            </div>
+            <div class="price-row">
+                <span>Цена комплектации:</span>
+                <span id="price_kompl">0.00 руб.</span>
+            </div>
+            <div class="price-row">
+                <span>Цена полок:</span>
+                <span id="price_polki">0.00 руб.</span>
+            </div>
+            <div class="price-row">
+                <span>Площадь фасада:</span>
+                <span id="facade_area">0.00 м²</span>
+            </div>
+            <div class="price-row">
+                <span>Цена фасадов:</span>
+                <span id="facade_price">0.00 руб.</span>
+            </div>
+            <div class="price-row total">
+                <span>Итоговая цена:</span>
+                <span id="total_price">0.00 руб.</span>
+            </div>
+        </div>
+        
+        <!-- Кнопки -->
+        <button onclick="addToCart()">Добавить в корзину</button>
+        <button onclick="updateCartDisplay()">Обновить корзину</button>
+        
+        <!-- Корзина -->
+        <div class="cart">
+            <h3>Корзина</h3>
+            <div id="cart-content">
+                <p>Корзина пуста</p>
+            </div>
+            <div class="total" id="cart-total">Итоговая сумма: 0.00 руб.</div>
+        </div>
+    </div>
+
+    <script src="/static/js/app.js"></script>
+    <script>
+        // Инициализация при загрузке
+        document.addEventListener('DOMContentLoaded', function() {
+            updateTypes();
+        });
+    </script>
+</body>
+</html>

@@ -661,6 +661,9 @@ def update_thickness_list(*args):
     thickness_menu.configure(values=thickness_options)
     facade_thickness_var.set(thickness_options[0])
     
+    # ВАЖНО: Обновляем список типов фасада после изменения толщины
+    update_facade_type_list()
+    
     # Пересчёт цены (для будущего расчёта)
     update_price()
 def update_facade_type_list(*args):
@@ -693,18 +696,29 @@ def update_facade_type_list(*args):
     # Обновляем меню типов фасада
     facade_type_menu.configure(values=options)
     if options: # Убедимся, что список не пуст
-        facade_type_var.set(options[0])
+        # Сохраняем текущее значение, если оно есть в новых опциях
+        current_value = facade_type_var.get()
+        if current_value in options:
+            facade_type_var.set(current_value)
+        else:
+            facade_type_var.set(options[0])
     else: # Если пуст, можно установить пустое значение или любое другое поведение по умолчанию
         facade_type_var.set("") # или другое значение по умолчанию
         print("Для выбранной коллекции и фрезеровки нет доступных типов фасада.")
-    # --- НОВОЕ: Управление содержимым меню цвета стекла ---
+    
+    # --- Управление содержимым меню цвета стекла ---
     selected_type = facade_type_var.get()
     if selected_type in ["Витрина", "Решетка"]:
         # Получаем уникальные цвета из таблицы grass
         grass_color_options = grass["Цвет стекла"].dropna().astype(str).unique().tolist()
         grass_color_menu.configure(values=grass_color_options)
         if grass_color_options:
-            grass_color_var.set(grass_color_options[0]) # Устанавливаем первый цвет по умолчанию
+            # Сохраняем текущее значение, если оно есть в новых опциях
+            current_grass_color = grass_color_var.get()
+            if current_grass_color in grass_color_options:
+                grass_color_var.set(current_grass_color)
+            else:
+                grass_color_var.set(grass_color_options[0]) # Устанавливаем первый цвет по умолчанию
         else:
             grass_color_var.set("") # или другое значение по умолчанию
         print(f"Меню выбора цвета стекла заполнено. Доступные цвета: {grass_color_options}")
@@ -713,7 +727,7 @@ def update_facade_type_list(*args):
         grass_color_menu.configure(values=[])
         grass_color_var.set("") # Сбрасываем выбор
         print("Меню выбора цвета стекла очищено (тип фасада не Витрина/Решетка).")
-    # --- /НОВОЕ ---
+    
     # Пересчёт цены (на будущее)
     update_price()
 
@@ -1247,6 +1261,8 @@ collection_var.trace_add("write", update_price)
 facade_color_var.trace_add("write", update_price)
 facade_thickness_var.trace_add("write", update_price)
 facade_type_var.trace_add("write", update_price)
+# Привязываем обновление содержимого меню цвета стекла к изменению типа фасада
+facade_type_var.trace_add("write", update_facade_type_list)
 # Привязываем обновление цены к изменению цвета стекла
 grass_color_var.trace_add("write", lambda *args: update_price())
 # -----------------
