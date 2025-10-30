@@ -21,13 +21,10 @@ color_fasades = pd.read_excel("data.xlsx", sheet_name="color_fasades")   # Цв�
 frez = pd.read_excel("data.xlsx", sheet_name="frez")                     # Фрезеровка
 price_collections = pd.read_excel("data.xlsx", sheet_name="price_collections")  # Коллекции и цены
 grass = pd.read_excel("data.xlsx", sheet_name="grass") # Цвета стекла и цены
-# Выводим, что находится в столбце "Изделие" на листе "polki"
-print("Столбец 'Изделие' из листа 'polki':")
-print(polki["Изделие"].dropna().tolist())
 
 # Создаём список типов полок (уникальные значения из столбца "Изделие")
 polki_types = polki["Изделие"].dropna().astype(str).unique().tolist()
-print("polki_types:", polki_types)
+#print("polki_types:", polki_types)
 
 # -----------------
 # Создание основного окна приложения
@@ -47,15 +44,19 @@ kompl_var = ctk.StringVar()       # Комплектация
 price_var = ctk.StringVar()       # Цена
 qty_var = tk.IntVar(value=1)      # Количество
 
-color_var = ctk.StringVar()       # Цвет (из Excel)
-color_options = color_korp["Цвета"].dropna().astype(str).tolist()  # ← НОВОЕ
+color_var = ctk.StringVar()
+
+color_options = color_korp["Цвета"].dropna().astype(str).tolist()
+if color_options:
+    color_var.set(color_options[0])  # По умолчанию первый цвет  # ← НОВОЕ
+
+
 # -----------------
 # Переменные для фасадов
 # -----------------
 collection_var = ctk.StringVar()  # Выбранная коллекция фасада
-print("color_options:", color_options)
-if color_options:
-    color_var.set(color_options[0])  # По умолчанию первый цвет
+#print("color_options:", color_options)
+
 
 frez_var = ctk.StringVar()  # Выбранная фрезеровка
 
@@ -131,6 +132,7 @@ thickness_menu = ctk.CTkOptionMenu(menu_frame, values=[], variable=facade_thickn
 facade_type_menu = ctk.CTkOptionMenu(menu_frame, values=[], variable=facade_type_var)
 
 
+grass_color_menu = ctk.CTkOptionMenu(menu_frame, values=[], variable=grass_color_var) # Виджет для выбора цвета стекла
 # === Левая колонка: корпус ===
 row = 0
 for label_text, menu_widget in [
@@ -154,28 +156,12 @@ for label_text, menu_widget in [
     ("Цвет фасада:", facade_color_menu),
     ("Толщина фасада:", thickness_menu),
     ("Тип фасада:", facade_type_menu),
+    ("Цвет стекла для фасада:", grass_color_menu),
 ]:
     label = ctk.CTkLabel(menu_frame, text=label_text)
     label.grid(row=row, column=2, padx=(10, 5), pady=3, sticky="e")
     menu_widget.grid(row=row, column=3, padx=(5, 10), pady=3, sticky="w")
     row += 1
-
-
-# -----------------
-# Список цветов стекла
-# -----------------
-
-# Создаём метку и размещаем виджет для цвета стекла, но изначально скрываем его
-grass_color_label = ctk.CTkLabel(menu_frame, text="Цвет стекла:")
-# Размещаем их в следующей строке, но изначально "не показываем"
-# Это можно сделать, разместив и сразу вызвав grid_remove или используя grid_forget.
-# Но проще в данном случае использовать pack для самого grass_color_menu отдельно.
-# Однако, для согласованности с grid, разместим их, но не будем показывать изначально.
-# Используем grid_forget для скрытия.
-grass_color_label.grid(row=row, column=2, padx=(10, 5), pady=3, sticky="e")
-grass_color_menu.grid(row=row, column=3, padx=(5, 10), pady=3, sticky="w")
-grass_color_label.grid_forget() # Скрываем метку
-grass_color_menu.grid_forget()  # Скрываем меню
 # -----------------
 # Фрейм для размещения лейблов в сетке (2 колонки)
 # -----------------
@@ -287,7 +273,7 @@ polki_type_label = ctk.CTkLabel(polki_frame, text="Тип полки:")
 polki_type_label.grid(row=0, column=2, padx=(0,5))
 
 polki_type_var = ctk.StringVar()
-print("Инициализируем polki_type_menu с:", polki_types)
+#print("Инициализируем polki_type_menu с:", polki_types)
 polki_type_menu = ctk.CTkOptionMenu(polki_frame, values=polki_types, variable=polki_type_var)
 polki_type_menu.grid(row=0, column=3, padx=(0,15))
 
@@ -342,7 +328,7 @@ def calculate_facade_area():
         return 0.0
 
     formula = str(formula_raw).strip()
-    print(f"Формула фасада: {formula}")
+    #print(f"Формула фасада: {formula}")
 
     # Получаем текущие размеры
     try:
@@ -509,7 +495,7 @@ def calculate_facade_price():
     # 7. ПРИМЕНЯЕМ СКИДКУ К БАЗОВОЙ ЦЕНЕ (до фрезеровки)
     # <- НОВОЕ: Применяем скидку
     discounted_price_per_m2 = base_price_per_m2 * (1 - discount)
-    print(f"Базовая цена: {base_price_per_m2}, Скидка: {discount*100}%, Цена после скидки: {discounted_price_per_m2}")
+    #print(f"Базовая цена: {base_price_per_m2}, Скидка: {discount*100}%, Цена после скидки: {discounted_price_per_m2}")
     # <- КОНЕЦ НОВОГО
 
     # 8. ДОПЛАТА ЗА ФРЕЗЕРОВКУ И ПРОВЕРКА ТИПА ФРЕЗЕРОВКИ / ТИПА ФАСАДА
@@ -523,7 +509,7 @@ def calculate_facade_price():
     # Проверка типа фасада: "Решетка" всегда "Сложная"
     if selected_type == "Решетка":
         is_complex_frez = True
-        print(f"Фасад типа '{selected_type}' считается 'Сложной' фрезеровкой.")
+        #print(f"Фасад типа '{selected_type}' считается 'Сложной' фрезеровкой.")
     elif not frez_row.empty:
         # --- Проверка типа фрезеровки для НЕ-решетки ---
         frez_type = frez_row.iloc[0].get("Тип Фрезеровки")
@@ -543,7 +529,7 @@ def calculate_facade_price():
     complex_frez_surcharge_per_m2 = 0.0
     if is_complex_frez:
         complex_frez_surcharge_per_m2 = discounted_price_per_m2 * 0.25
-        print(f"Применена наценка за 'Сложную' фрезеровку/Решетку: {complex_frez_surcharge_per_m2:.2f} руб/м2")
+        #print(f"Применена наценка за 'Сложную' фрезеровку/Решетку: {complex_frez_surcharge_per_m2:.2f} руб/м2")
 
     # Итоговая цена за м² = цена со скидкой + обычная доплата за фрезеровку + наценка за сложность
     total_price_per_m2 = discounted_price_per_m2 + frez_surcharge + complex_frez_surcharge_per_m2
@@ -564,7 +550,7 @@ def calculate_facade_price():
                     grass_price_per_m2 = float(grass_price_per_m2_raw)
                     area = calculate_facade_area() # Пересчитываем площадь
                     grass_price = grass_price_per_m2 * area
-                    print(f"Цена стекла ({selected_grass_color}) за м²: {grass_price_per_m2}, за {area:.2f} м²: {grass_price:.2f}")
+                    #print(f"Цена стекла ({selected_grass_color}) за м²: {grass_price_per_m2}, за {area:.2f} м²: {grass_price:.2f}")
                 except ValueError:
                     print(f"⚠️ Неверный формат цены стекла: {grass_price_per_m2_raw}, используем 0")
                     grass_price = 0.0
@@ -711,8 +697,7 @@ def update_facade_type_list(*args):
     else: # Если пуст, можно установить пустое значение или любое другое поведение по умолчанию
         facade_type_var.set("") # или другое значение по умолчанию
         print("Для выбранной коллекции и фрезеровки нет доступных типов фасада.")
-
-    # - НОВОЕ: Управление видимостью и содержимым меню цвета стекла -
+    # --- НОВОЕ: Управление содержимым меню цвета стекла ---
     selected_type = facade_type_var.get()
     if selected_type in ["Витрина", "Решетка"]:
         # Получаем уникальные цвета из таблицы grass
@@ -722,22 +707,19 @@ def update_facade_type_list(*args):
             grass_color_var.set(grass_color_options[0]) # Устанавливаем первый цвет по умолчанию
         else:
             grass_color_var.set("") # или другое значение по умолчанию
-        # Показываем меню (размещаем под остальными виджетами в menu_frame)
-        grass_color_menu.pack(pady=5, padx=10, fill="x")
-        print(f"Меню выбора цвета стекла показано. Доступные цвета: {grass_color_options}")
+        print(f"Меню выбора цвета стекла заполнено. Доступные цвета: {grass_color_options}")
     else:
-        # Скрываем меню (удаляем из сетки размещения)
-        grass_color_menu.pack_forget()
+        # Оставляем меню пустым, если не Витрина и не Решетка
+        grass_color_menu.configure(values=[])
         grass_color_var.set("") # Сбрасываем выбор
-        print("Меню выбора цвета стекла скрыто.")
-    # - /НОВОЕ -
-
+        print("Меню выбора цвета стекла очищено (тип фасада не Витрина/Решетка).")
+    # --- /НОВОЕ ---
     # Пересчёт цены (на будущее)
     update_price()
 
 def set_polki_type_menu(new_values):
     """Обновляет выпадающее меню выбора типа полок"""
-    print("set_polki_type_menu получил:", new_values)
+    #print("set_polki_type_menu получил:", new_values)
     global polki_type_menu, polki_type_var
     if hasattr(polki_type_menu, "set_values"):
         polki_type_menu.set_values(new_values)
@@ -750,7 +732,7 @@ def set_polki_type_menu(new_values):
         polki_type_var.set(new_values[0])
 
 def update_module_defaults(*args):
-    print("update_module_defaults вызван")
+    #print("update_module_defaults вызван")
     global polki_type_menu, height_case_menu, width_menu
     selected_module = module_var.get()
     if not selected_module:
@@ -876,7 +858,7 @@ def update_module_defaults(*args):
 
     # === Обновляем Spinbox ===
     polki_count_spin.config(from_=min_polki, to=max_polki)
-    print(f"Spinbox обновлён: from={min_polki}, to={max_polki}, default={default_polki}")
+    #print(f"Spinbox обновлён: from={min_polki}, to={max_polki}, default={default_polki}")
     polki_count_var.set(default_polki)
 
     # Настройка типа полки
@@ -885,7 +867,7 @@ def update_module_defaults(*args):
         available_types = [t for t in available_types if t != "Стекло"]
 
     new_values = available_types
-    print("update_module_defaults: передаём в set_polki_type_menu:", new_values)
+    #print("update_module_defaults: передаём в set_polki_type_menu:", new_values)
     set_polki_type_menu(new_values)
 
     # === ВАЖНО: вызываем пересчёт цены после обновления полок ===
@@ -948,7 +930,7 @@ def update_module_list(*args):
 
 def update_price(*args):
     """Рассчитывает и обновляет цену корпуса, фурнитуры, комплектации, полок"""
-    print("update_price вызван")
+    #print("update_price вызван")
     selected_module = module_var.get()
     selected_color_name = color_var.get()
     # === Определяем категорию цвета ===
@@ -1115,17 +1097,17 @@ def update_price(*args):
 
     try:
         count_polki = polki_count_var.get()
-        print("count_polki:", count_polki)
+        #print("count_polki:", count_polki)
         if count_polki > 0:
             type_selected = polki_type_var.get().strip()
             if type_selected == "ЛДСП":
                 col_name = 'Формула_расчета_полок'
             else:
                 col_name = 'Формула_расчета_стеклянных_полок'
-            print("type_selected:", type_selected)
+            ##print("type_selected:", type_selected)
             
             formula = str(price_row.iloc[0][col_name]).strip()
-            print("formula (до исправления):", formula)
+            ##print("formula (до исправления):", formula)
             if not formula or formula.lower() in ["нет", "", "nan"]:
                 formula = "0"
 
@@ -1137,25 +1119,25 @@ def update_price(*args):
 
             try:
                 area = eval(formula, {}, eval_vars)
-                print("area:", area)
+                ##print("area:", area)
             except Exception as e:
-                print(f"Ошибка в формуле: {e}")
+                #print(f"Ошибка в формуле: {e}")
                 area = 0
 
 
             row_polka = polki[polki["Изделие"].astype(str).str.strip() == type_selected.strip()]
-            print("row_polka:", row_polka)
+            ##print("row_polka:", row_polka)
             if not row_polka.empty:
                 try:
                     price_m2 = float(row_polka.iloc[0]["Цена,м2"])
-                    print("price_m2:", price_m2)
+                    #print("price_m2:", price_m2)
                 except Exception:
                     price_m2 = 0
-                    print("price_m2 (ошибка): 0")
+                    #print("price_m2 (ошибка): 0")
                 price_polki = area * price_m2 * count_polki
-                print("price_polki:", price_polki)
+                #print("price_polki:", price_polki)
     except Exception as e:
-        print(f"Ошибка при расчете полок: {e}")
+        #print(f"Ошибка при расчете полок: {e}")
         price_polki = 0
     
     # === Площадь фасада ===
@@ -1265,6 +1247,8 @@ collection_var.trace_add("write", update_price)
 facade_color_var.trace_add("write", update_price)
 facade_thickness_var.trace_add("write", update_price)
 facade_type_var.trace_add("write", update_price)
+# Привязываем обновление цены к изменению цвета стекла
+grass_color_var.trace_add("write", lambda *args: update_price())
 # -----------------
 # Кнопки
 # -----------------
