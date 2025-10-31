@@ -134,8 +134,8 @@ async function updateKompl() {
     });
 }
 
-// Функции для фасадов
 async function updateFrez() {
+    console.log('🔴 updateFrez начал работу');
     const collection = document.getElementById('collection').value;
     const response = await axios.get(`/api/frez?collection=${encodeURIComponent(collection)}`);
     const frezOptions = response.data.frez_options;
@@ -149,7 +149,12 @@ async function updateFrez() {
         frezSelect.appendChild(option);
     });
     
-    updateThickness();
+    console.log('🔴 Вызываю updateFacadeColors...');
+    await updateFacadeColors();
+    console.log('🔴 updateFacadeColors завершен');
+    
+    await updateThickness();
+    console.log('🔴 updateFrez завершил работу');
 }
 
 async function updateThickness() {

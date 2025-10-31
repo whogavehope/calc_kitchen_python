@@ -76,7 +76,7 @@
                 <h3>Фасад</h3>
                 <div class="form-group">
                     <label for="collection">Коллекция фасада:</label>
-                    <select id="collection" onchange="updateFrez()">
+                    <select id="collection" onchange="updateFacadeColors(); updateFrez();">
                         {% for collection in collection_options %}
                         <option value="{{ collection }}">{{ collection }}</option>
                         {% endfor %}

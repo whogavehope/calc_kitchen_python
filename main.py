@@ -7,6 +7,8 @@ import uvicorn
 from typing import Optional
 import json
 
+#uvicorn main:app --reload
+
 app = FastAPI(title="Калькулятор модулей")
 
 # Монтируем статические файлы
@@ -31,7 +33,12 @@ try:
     polki_types = polki["Изделие"].dropna().astype(str).unique().tolist()
     color_options = color_korp["Цвета"].dropna().astype(str).tolist()
     collection_options = price_collections["Коллекция"].dropna().astype(str).unique().tolist()
-    
+    # После загрузки данных добавь:
+    print("=== КОЛЛЕКЦИИ В price_collections ===")
+    print(price_collections["Коллекция"].dropna().astype(str).unique().tolist())
+
+    print("=== КОЛЛЕКЦИИ В color_fasades ===") 
+    print(color_fasades["Коллекция"].dropna().astype(str).unique().tolist())
 except Exception as e:
     print(f"Ошибка загрузки данных: {e}")
     # Создаем пустые DataFrame чтобы избежать ошибок
@@ -567,15 +574,25 @@ async def get_facade_colors(collection: str):
     if color_fasades.empty or not collection:
         return {"color_options": ["Без цвета"]}
     
+    # ДЛЯ ДЕБАГА - посмотрим что есть в данных
+    print(f"=== ЗАПРОС ЦВЕТОВ ДЛЯ КОЛЛЕКЦИИ: '{collection}' ===")
+    print("Все коллекции в color_fasades:", color_fasades["Коллекция"].astype(str).str.strip().unique().tolist())
+    
     filtered_colors = color_fasades[
         color_fasades["Коллекция"].astype(str).str.strip() == collection.strip()
     ]
+    
+    print(f"Найдено строк: {len(filtered_colors)}")
+    
     if filtered_colors.empty:
         color_options = ["Без цвета"]
     else:
         color_options = filtered_colors["Номер цвета"].dropna().astype(str).unique().tolist()
         if not color_options:
             color_options = ["Без цвета"]
+    
+    print(f"Возвращаемые цвета: {color_options}")
+    print("===")
     
     return {"color_options": color_options}
 
