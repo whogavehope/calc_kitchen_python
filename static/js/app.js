@@ -80,22 +80,40 @@ async function updateModuleDefaults() {
     } else {
         widthContainer.innerHTML = `<input type="number" id="width" step="0.1" value="${defaults.width}" onchange="updatePrice()">`;
     }
-    
     // Обрабатываем нишу
-    const nishaContainer = document.getElementById('nisha-container');
-    const nishaInputContainer = document.getElementById('nisha-input-container');
     if (defaults.nisha_required) {
         nishaContainer.style.display = 'block';
+        let element;
         if (defaults.nisha_options) {
-            nishaInputContainer.innerHTML = `
-                <select id="nisha_height" onchange="updatePrice()">
-                    ${defaults.nisha_options.map(n => `<option value="${n}">${n}</option>`).join('')}
-                </select>
-            `;
-            document.getElementById('nisha_height').value = defaults.nisha_default;
+            // Создаём select через DOM, а не innerHTML
+            const select = document.createElement('select');
+            select.id = 'nisha_height';
+            defaults.nisha_options.forEach(n => {
+                const option = document.createElement('option');
+                option.value = n;
+                option.textContent = n;
+                select.appendChild(option);
+            });
+            select.value = defaults.nisha_default;
+            element = select;
         } else {
-            nishaInputContainer.innerHTML = `<input type="number" id="nisha_height" step="0.1" onchange="updatePrice()">`;
+            const input = document.createElement('input');
+            input.type = 'number';
+            input.id = 'nisha_height';
+            input.step = '0.1';
+            element = input;
         }
+
+        // 🔥 КЛЮЧЕВОЕ: вешаем обработчик напрямую
+        element.addEventListener('change', updatePrice);
+        // Опционально: для input можно добавить 'input' для мгновенного обновления
+        if (element.tagName === 'INPUT') {
+            element.addEventListener('input', updatePrice);
+        }
+
+        // Очищаем контейнер и добавляем элемент
+        nishaInputContainer.innerHTML = '';
+        nishaInputContainer.appendChild(element);
     } else {
         nishaContainer.style.display = 'none';
     }

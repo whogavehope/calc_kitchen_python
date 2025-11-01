@@ -325,17 +325,13 @@ def calculate_module_price(selected_module: str, selected_color: str, selected_k
             (kompl["number_kompl"].astype(str).str.strip() == selected_kompl.strip())
         ]
 
-        nisha_required = False
-        if not price_row.empty:
-            nisha_value = price_row.iloc[0, 20]
-            nisha_required = str(nisha_value).strip().lower() == "да"
-
         for _, row in kompl_rows.iterrows():
             try:
                 name_furn = row['name_furn']
-                quantity = row['quanity']
+                quantity = row['quanity']  # ← базовое количество ВСЕГДА берётся
                 condition = row.get('condition', '')
 
+                # Если условие есть — пытаемся его обработать, чтобы ПОМЕНЯТЬ параметры
                 if isinstance(condition, str) and condition.strip():
                     eval_vars = {
                         "actual_width": width,
@@ -352,28 +348,37 @@ def calculate_module_price(selected_module: str, selected_color: str, selected_k
                         case_1 = eval(case_1_expr, {}, eval_vars) if case_1_expr else False
                         case_2 = eval(case_2_expr, {}, eval_vars) if case_2_expr else False
 
+                        # Меняем количество ТОЛЬКО если условие выполнилось и есть новое значение
                         if case_1 and pd.notna(row.get('changed_quantity')):
                             quantity = row['changed_quantity']
                         elif case_2 and pd.notna(row.get('changed_quantity_case_2')):
                             quantity = row['changed_quantity_case_2']
+                        # Если ни одно условие не выполнилось — оставляем БАЗОВОЕ количество
+                        # ← НИКАКОГО should_include = False!
+
                     else:
+                        # Обычное условие (не case_1/case_2)
                         if eval(condition, {}, eval_vars):
                             if pd.notna(row.get('name_furn_changed')):
                                 name_furn = row['name_furn_changed']
                             if pd.notna(row.get('changed_quantity')):
                                 quantity = row['changed_quantity']
                         else:
-                            continue
+                            # ← Даже если условие ложно — всё равно оставляем базовое количество!
+                            # Потому что в старой логике условие было "дополнительным", а не "обязательным"
+                            pass  # ← НИЧЕГО НЕ ДЕЛАЕМ, но НЕ ПРОПУСКАЕМ
 
+                # В ЛЮБОМ случае (с условием или без) — добавляем позицию
                 furn_row = furn[furn['name_furn'].astype(str).str.strip() == str(name_furn).strip()]
                 if not furn_row.empty:
                     furn_price = furn_row.iloc[0]['price']
                     if pd.isna(furn_price):
                         furn_price = 0.0
                     price_kompl += furn_price * quantity
-            except Exception:
-                continue
 
+            except Exception as e:
+                print(f"Ошибка при обработке комплектации: {e}")
+                continue
     # Цена полок
     price_polki = 0.0
     try:
