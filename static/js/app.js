@@ -287,8 +287,33 @@ async function updatePrice() {
     }
 }
 
-// Работа с корзиной
 async function addToCart() {
+    const qty = parseInt(document.getElementById('qty').value) || 1;
+
+    const priceText = document.getElementById('total_price').textContent.trim();
+    let pricePerUnit = 0;
+
+    // Очищаем строку от всего, кроме цифр, точек и запятых
+    const cleaned = priceText.replace(/[^\d.,]/g, '');
+
+    if (cleaned.includes(',')) {
+        // Если есть запятая — предполагаем, что это десятичный разделитель
+        pricePerUnit = parseFloat(cleaned.replace('.', '').replace(',', '.'));
+    } else {
+        // Если нет запятой — просто парсим как число
+        pricePerUnit = parseFloat(cleaned);
+    }
+
+    pricePerUnit = pricePerUnit || 0;
+
+    const totalPriceForCart = pricePerUnit * qty;
+
+    console.log("Цена с экрана:", priceText);
+    console.log("Очищенная строка:", cleaned);
+    console.log("Цена за 1 шт:", pricePerUnit);
+    console.log("Количество:", qty);
+    console.log("Итоговая цена для корзины:", totalPriceForCart);
+
     const formData = new FormData();
     formData.append('module', document.getElementById('module').value);
     formData.append('category', document.getElementById('category').value);
@@ -298,9 +323,9 @@ async function addToCart() {
     formData.append('height', document.getElementById('height').value);
     formData.append('width', document.getElementById('width').value);
     formData.append('depth', document.getElementById('depth').value);
-    formData.append('qty', document.getElementById('qty').value);
-    formData.append('total_price', document.getElementById('total_price').textContent.replace(' руб.', '').replace(/\s/g, ''));
-    
+    formData.append('qty', qty);
+    formData.append('total_price', totalPriceForCart);
+
     try {
         await axios.post('/api/add_to_cart', formData);
         updateCartDisplay();
