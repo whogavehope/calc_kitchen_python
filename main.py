@@ -58,7 +58,8 @@ except Exception as e:
 
 # Глобальная переменная для корзины
 cart = []
-
+# Глобальная переменная для корзины фасадов
+facade_cart = []
 # -----------------
 # Вспомогательные функции
 # -----------------
@@ -423,6 +424,53 @@ def calculate_module_price(selected_module: str, selected_color: str, selected_k
         "total_price": round(total_price, 2)
     }
 
+
+def calculate_facade_size(formula: str, height: float, width: float, depth: float) -> tuple:
+    """
+    Рассчитывает высоту и ширину фасада по формуле.
+    Пример: "height_fas = (height - 4)  width_fas = (width - 354)"
+    """
+    if not formula or pd.isna(formula):
+        return 0.0, 0.0
+
+    # Убираем лишние пробелы
+    formula = str(formula).strip()
+
+    # Ищем высоту и ширину
+    import re
+
+    # Выражения для поиска
+    height_match = re.search(r"height_fas\s*=\s*\(?([^)]+)\)?", formula)
+    width_match = re.search(r"width_fas\s*=\s*\(?([^)]+)\)?", formula)
+
+    height_fas = 0.0
+    width_fas = 0.0
+
+    if height_match:
+        height_expr = height_match.group(1).strip()
+        try:
+            height_fas = eval(height_expr, {"__builtins__": {}}, {"height": height, "width": width, "depth": depth})
+        except:
+            height_fas = 0.0
+
+    if width_match:
+        width_expr = width_match.group(1).strip()
+        try:
+            width_fas = eval(width_expr, {"__builtins__": {}}, {"height": height, "width": width, "depth": depth})
+        except:
+            width_fas = 0.0
+
+    return float(height_fas), float(width_fas)
+
+def calculate_facade_price_by_size(collection: str, frez_type: str, color: str, thickness: str,
+                                  facade_type: str, grass_color: str, height: float, width: float, depth: float, nisha_height: float) -> float:
+    """
+    Рассчитывает цену фасада по его размерам.
+    """
+    facade_area = height * width
+    return calculate_facade_price(collection, frez_type, color, thickness, facade_type, grass_color, facade_area)
+
+
 # -----------------
 # API endpoints
 # -----------------
@@ -477,20 +525,20 @@ async def get_module_defaults(module: str):
     """Получить настройки по умолчанию для выбранного модуля"""
     if df.empty or not module:
         return {"error": "Модуль не найден"}
-    
+
     row = df[df.iloc[:, 0] == module]
     if row.empty:
         return {"error": "Модуль не найден"}
-    
+
     module_data = row.iloc[0]
-    
+
     # Базовые размеры
     defaults = {
         "height": float(module_data[14]) if pd.notna(module_data[14]) else 0,
         "width": float(module_data[15]) if pd.notna(module_data[15]) else 0,
         "depth": float(module_data[16]) if pd.notna(module_data[16]) else 0,
     }
-    
+
     # Доступные ширины
     width_options_str = str(module_data[28]).strip()
     if width_options_str and width_options_str.lower() not in ["", "nan", "нет"]:
@@ -501,11 +549,11 @@ async def get_module_defaults(module: str):
             defaults["width_options"] = None
     else:
         defaults["width_options"] = None
-    
+
     # Настройки ниши
     nisha_required = str(module_data[20]).strip().lower() == "да"
     defaults["nisha_required"] = nisha_required
-    
+
     if nisha_required:
         size_options_str = str(module_data[27]).strip()
         if size_options_str and size_options_str.lower() not in ["", "nan", "нет"]:
@@ -519,29 +567,46 @@ async def get_module_defaults(module: str):
         else:
             defaults["nisha_options"] = None
             defaults["nisha_default"] = ""
-    
+
     # Настройки полок
     min_polki = int(module_data[22]) if pd.notna(module_data[22]) else 0
     max_polki = int(module_data[23]) if pd.notna(module_data[23]) else 0
     default_polki = int(module_data[24]) if pd.notna(module_data[24]) else max_polki
-    
+
     if default_polki < min_polki:
         default_polki = min_polki
     elif default_polki > max_polki:
         default_polki = max_polki
-        
+
     defaults["polki_min"] = min_polki
     defaults["polki_max"] = max_polki
     defaults["polki_default"] = default_polki
-    
+
     # Доступные типы полок
     glass_access = str(module_data[25]).strip().lower() == "да"
     available_polki_types = polki_types.copy()
     if not glass_access:
         available_polki_types = [t for t in available_polki_types if t != "Стекло"]
-    
+
     defaults["available_polki_types"] = available_polki_types
-    
+
+    # === 🔥 НОВОЕ: использование имён столбцов вместо индексов ===
+    # Количество фасадов
+    if "Количество_фасадов" in df.columns:
+        facade_count_raw = module_data[df.columns.get_loc("Количество_фасадов")]
+        defaults["facade_count"] = int(facade_count_raw) if pd.notna(facade_count_raw) else 0
+    else:
+        defaults["facade_count"] = 0
+
+    # Размеры фасадов
+    for i in range(1, 5):  # Поддержка до 4 фасадов
+        col_name = f"Размеры {i} фасада"
+        if col_name in df.columns:
+            raw_val = module_data[df.columns.get_loc(col_name)]
+            defaults[col_name] = str(raw_val) if pd.notna(raw_val) else ""
+        else:
+            defaults[col_name] = ""
+
     return defaults
 
 @app.get("/api/kompl")
@@ -759,6 +824,59 @@ async def remove_from_cart(index: int = Form(...)):
         return {"success": True, "cart_size": len(cart)}
     else:
         raise HTTPException(status_code=400, detail="Неверный индекс")
+
+
+@app.post("/api/add_to_facade_cart")
+async def add_to_facade_cart(
+    module: str = Form(...),
+    collection: str = Form(...),
+    frez_type: str = Form(...),
+    facade_color: str = Form(...),
+    facade_thickness: str = Form(...),
+    facade_type: str = Form(...),
+    grass_color: str = Form(...),
+    facade_height: float = Form(...),
+    facade_width: float = Form(...),
+    facade_area: float = Form(...),
+    qty: int = Form(...),
+    total_price: float = Form(...)
+):
+    """Добавить фасад в корзину"""
+    global facade_cart
+
+    facade_cart.append({
+        "module": module,
+        "collection": collection,
+        "frez_type": frez_type,
+        "facade_color": facade_color,
+        "facade_thickness": facade_thickness,
+        "facade_type": facade_type,
+        "grass_color": grass_color,
+        "facade_height": facade_height,
+        "facade_width": facade_width,
+        "facade_area": facade_area,
+        "qty": qty,
+        "total_price": total_price
+    })
+
+    return {"success": True, "facade_cart_size": len(facade_cart)}
+
+@app.get("/api/facade_cart")
+async def get_facade_cart():
+    """Получить содержимое корзины фасадов"""
+    return {"facade_cart": facade_cart}
+
+@app.post("/api/remove_from_facade_cart")
+async def remove_from_facade_cart(index: int = Form(...)):
+    """Удалить элемент из корзины фасадов"""
+    global facade_cart
+
+    if 0 <= index < len(facade_cart):
+        facade_cart.pop(index)
+        return {"success": True, "facade_cart_size": len(facade_cart)}
+    else:
+        raise HTTPException(status_code=400, detail="Неверный индекс")
+
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)
