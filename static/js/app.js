@@ -1,6 +1,30 @@
 // Глобальные переменные
 let currentCart = [];
 let currentModuleDefaults = null;
+
+
+// Функция для обновления картинки
+function updateModuleImage() {
+    const module = document.getElementById('module').value;
+    const imgElement = document.getElementById('module-image');
+
+    if (module) {
+        // Формируем путь к изображению
+        const imagePath = `/static/images/${module}.jpg`;
+        imgElement.src = imagePath;
+        imgElement.style.display = 'block';
+
+        // На всякий случай — если изображение не найдено, показать "заглушку"
+        imgElement.onerror = () => {
+            imgElement.style.display = 'none';
+            console.warn(`Изображение для модуля ${module} не найдено.`);
+        };
+    } else {
+        imgElement.style.display = 'none';
+    }
+}
+
+
 // Функции обновления списков
 async function updateTypes() {
     const category = document.getElementById('category').value;
@@ -60,6 +84,7 @@ async function updateModuleDefaults() {
     const module = document.getElementById('module').value;
     if (!module) {
         currentModuleDefaults = null;
+        updateModuleImage(); // ← убираем изображение
         return;
     }
     
@@ -70,7 +95,8 @@ async function updateModuleDefaults() {
     document.getElementById('height').value = defaults.height;
     document.getElementById('width').value = defaults.width;
     document.getElementById('depth').value = defaults.depth;
-    
+    // 🔥 Вызываем обновление картинки
+    updateModuleImage();
     // Обрабатываем ширину
     const widthContainer = document.getElementById('width-container');
     if (defaults.width_options) {
@@ -771,4 +797,7 @@ document.addEventListener('DOMContentLoaded', function() {
     updateTypes();
     updateFrez();
     updateFacadeColors();
+
+    // 🔥 Если модуль уже выбран — обновим изображение
+    setTimeout(updateModuleImage, 500); // с небольшой задержкой, чтобы DOM успел загрузиться
 });
