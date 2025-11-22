@@ -665,6 +665,14 @@ async function addToFacadeCart() {
 
         // === ШАГ 15: Отправляем запрос на сервер, чтобы получить цену фасада ===
         try {
+            // Проверяем, что все необходимые параметры заполнены
+            if (!module || !collection || !frez_type || !facade_color || !facade_thickness || !facade_type) {
+                console.warn("ШАГ 15: Пропущен расчет цены фасада - отсутствуют необходимые параметры:", {
+                    module, collection, frez_type, facade_color, facade_thickness, facade_type
+                });
+                continue; // Пропускаем этот фасад и переходим к следующему
+            }
+            
             const priceResponse = await axios.post('/api/calculate_price', formData);
             console.log("ШАГ 15: Ответ от /api/calculate_price:", priceResponse.data);
 
@@ -844,41 +852,44 @@ function loadCartsFromFile(event) {
     if (!file) {
         return;
     }
-    
+
     const reader = new FileReader();
-    reader.onload = function(e) {
+    reader.onload = async function(e) {
         try {
             const cartsData = JSON.parse(e.target.result);
-            
+
             // Отправляем данные корзин на сервер
             if (cartsData.cart) {
-                axios.post('/api/load_cart', { cart: cartsData.cart })
-                    .then(() => {
-                        console.log('Основная корзина загружена');
-                        updateCartDisplay();
-                    })
-                    .catch(error => {
-                        console.error('Ошибка загрузки основной корзины:', error);
-                    });
+                try {
+                    await axios.post("/api/load_cart", { cart: cartsData.cart });
+                    console.log("Основная корзина загружена");
+                    await updateCartDisplay();
+                } catch (error) {
+                    console.error("Ошибка загрузки основной корзины:", error);
+                }
+            }
+
+            if (cartsData.facadeCart) {
+                try {
+                    await axios.post("/api/load_facade_cart", { facade_cart: cartsData.facadeCart });
+                    console.log("Корзина фасадов загружена");
+                    await updateFacadeCartDisplay();
+                } catch (error) {
+                    console.error("Ошибка загрузки корзины фасадов:", error);
+                }
             }
             
-            if (cartsData.facadeCart) {
-                axios.post('/api/load_facade_cart', { facade_cart: cartsData.facadeCart })
-                    .then(() => {
-                        console.log('Корзина фасадов загружена');
-                        updateFacadeCartDisplay();
-                    })
-                    .catch(error => {
-                        console.error('Ошибка загрузки корзины фасадов:', error);
-                    });
-            }
+            // После загрузки корзин обновляем все списки
+            await updateTypes();
+            await updateFrez();
+            await updateFacadeColors();
         } catch (error) {
-            console.error('Ошибка при разборе JSON файла:', error);
+            console.error("Ошибка при разборе JSON файла:", error);
         }
     };
-    
+
     reader.readAsText(file);
-    
+
     // Сбрасываем значение input[type=file], чтобы можно было загрузить один и тот же файл дважды подряд
-    event.target.value = '';
+    event.target.value = "";
 }
