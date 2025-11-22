@@ -1,3 +1,4 @@
+
 // Глобальные переменные
 let currentCart = [];
 let currentModuleDefaults = null;
