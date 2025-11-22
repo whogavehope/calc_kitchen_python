@@ -203,23 +203,37 @@
         
         <!-- Кнопки -->
         <button onclick="addToCart()">Добавить в корзину</button>
-        <button onclick="updateCartDisplay()">Обновить корзину</button>
-        
-        <!-- Корзина -->
-        <div class="cart">
-            <h3>Корзина</h3>
+        <button onclick="updateCartDisplay(); openCartModal()">Просмотреть корзину</button>
+        <button onclick="openFacadeCartModal()">Просмотреть корзину фасадов</button>
+    </div>
+
+    <!-- Модальное окно для основной корзины -->
+    <div id="cartModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeCartModal()">&times;</span>
+            <h2>Корзина</h2>
             <div id="cart-content">
                 <p>Корзина пуста</p>
             </div>
             <div class="total" id="cart-total">Итоговая сумма: 0.00 руб.</div>
+            <div style="margin-top: 15px; text-align: right;">
+                <button onclick="closeCartModal()" style="background: #6c757d;">Закрыть</button>
+            </div>
         </div>
-        <!-- Корзина фасадов -->
-        <div class="cart">
-            <h3>Корзина фасадов</h3>
+    </div>
+
+    <!-- Модальное окно для корзины фасадов -->
+    <div id="facadeCartModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeFacadeCartModal()">&times;</span>
+            <h2>Корзина фасадов</h2>
             <div id="facade-cart-content">
                 <p>Корзина фасадов пуста</p>
             </div>
             <div class="total" id="facade-cart-total">Итоговая сумма: 0.00 руб.</div>
+            <div style="margin-top: 15px; text-align: right;">
+                <button onclick="closeFacadeCartModal()" style="background: #6c757d;">Закрыть</button>
+            </div>
         </div>
     </div>
 
@@ -229,6 +243,86 @@
         document.addEventListener('DOMContentLoaded', function() {
             updateTypes();
         });
+
+        // Функции для работы с модальными окнами
+        function openCartModal() {
+            document.getElementById('cartModal').style.display = 'block';
+            updateCartDisplay();
+        }
+
+        function closeCartModal() {
+            document.getElementById('cartModal').style.display = 'none';
+        }
+
+        function openFacadeCartModal() {
+            document.getElementById('facadeCartModal').style.display = 'block';
+            updateFacadeCartDisplay();
+        }
+
+        function closeFacadeCartModal() {
+            document.getElementById('facadeCartModal').style.display = 'none';
+        }
+
+        // Закрытие модального окна при клике вне его области
+        window.onclick = function(event) {
+            const cartModal = document.getElementById('cartModal');
+            const facadeCartModal = document.getElementById('facadeCartModal');
+            
+            if (event.target === cartModal) {
+                cartModal.style.display = 'none';
+            }
+            
+            if (event.target === facadeCartModal) {
+                facadeCartModal.style.display = 'none';
+            }
+        }
     </script>
+    
+    <style>
+        /* Стили для модальных окон */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+        }
+
+        .modal-content {
+            background-color: white;
+            margin: 5% auto;
+            padding: 20px;
+            border: none;
+            border-radius: 10px;
+            width: 80%;
+            max-width: 900px;
+            max-height: 80vh;
+            overflow-y: auto;
+            position: relative;
+        }
+
+        .close {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+            position: absolute;
+            right: 15px;
+            top: 10px;
+        }
+
+        .close:hover {
+            color: black;
+        }
+
+        .modal-content h2 {
+            margin-top: 0;
+            padding-right: 30px;
+        }
+    </style>
 </body>
 </html>
