@@ -1,1 +1,3 @@
-# Файлы с данными data.db extra_data.xlsx elements_data.xlsx # Виртуальное окружение Python venv/ */__pycache__/ *.pyc # Служебные файлы ОС .DS_Store Thumbs.db
+(data.xlsx is a data file that should not be ignored, and templates/index.html is a source file that should not be ignored, so no files in the change list require gitignore rules)
+
+(empty - output nothing)
