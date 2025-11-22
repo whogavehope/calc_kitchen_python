@@ -645,14 +645,14 @@ async function addToFacadeCart() {
         // === ШАГ 14: Подготавливаем данные для расчёта цены фасада ===
         const formData = new FormData();
         formData.append('module', module);
-        formData.append('color', document.getElementById('color').value);
-        formData.append('kompl', document.getElementById('kompl').value);
+        formData.append('color', document.getElementById('color')?.value || '');
+        formData.append('kompl', document.getElementById('kompl')?.value || '');
         formData.append('height', height);
         formData.append('width', width);
         formData.append('depth', depth);
         formData.append('nisha_height', nisha_height);
-        formData.append('polki_count', document.getElementById('polki_count').value);
-        formData.append('polki_type', document.getElementById('polki_type').value);
+        formData.append('polki_count', document.getElementById('polki_count')?.value || '0');
+        formData.append('polki_type', document.getElementById('polki_type')?.value || '');
         formData.append('collection', collection);
         formData.append('frez_type', frez_type);
         formData.append('facade_color', facade_color);
