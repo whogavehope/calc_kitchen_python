@@ -879,5 +879,23 @@ async def remove_from_facade_cart(index: int = Form(...)):
         raise HTTPException(status_code=400, detail="Неверный индекс")
 
 
+@app.post("/api/load_cart")
+async def load_cart(request: Request):
+    """Загрузить содержимое основной корзины"""
+    global cart
+    data = await request.json()
+    cart = data.get("cart", [])
+    return {"success": True, "cart_size": len(cart)}
+
+
+@app.post("/api/load_facade_cart")
+async def load_facade_cart(request: Request):
+    """Загрузить содержимое корзины фасадов"""
+    global facade_cart
+    data = await request.json()
+    facade_cart = data.get("facade_cart", [])
+    return {"success": True, "facade_cart_size": len(facade_cart)}
+
+
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)
