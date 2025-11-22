@@ -801,3 +801,83 @@ document.addEventListener('DOMContentLoaded', function() {
     // 🔥 Если модуль уже выбран — обновим изображение
     setTimeout(updateModuleImage, 500); // с небольшой задержкой, чтобы DOM успел загрузиться
 });
+
+// Функции для сохранения и загрузки корзин
+async function saveCartsToFile() {
+    try {
+        // Получаем обе корзины
+        const cartResponse = await axios.get('/api/cart');
+        const facadeCartResponse = await axios.get('/api/facade_cart');
+        
+        const cart = cartResponse.data.cart;
+        const facadeCart = facadeCartResponse.data.facade_cart;
+        
+        // Создаем объект с обеими корзинами
+        const cartsData = {
+            cart: cart,
+            facadeCart: facadeCart
+        };
+        
+        // Преобразуем в JSON
+        const jsonData = JSON.stringify(cartsData, null, 2);
+        
+        // Создаем Blob и ссылку для скачивания
+        const blob = new Blob([jsonData], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'carts_data.json';
+        document.body.appendChild(a);
+        a.click();
+        
+        // Удаляем элемент и освобождаем URL
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    } catch (error) {
+        console.error('Ошибка при сохранении корзин:', error);
+    }
+}
+
+function loadCartsFromFile(event) {
+    const file = event.target.files[0];
+    if (!file) {
+        return;
+    }
+    
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        try {
+            const cartsData = JSON.parse(e.target.result);
+            
+            // Отправляем данные корзин на сервер
+            if (cartsData.cart) {
+                axios.post('/api/load_cart', { cart: cartsData.cart })
+                    .then(() => {
+                        console.log('Основная корзина загружена');
+                        updateCartDisplay();
+                    })
+                    .catch(error => {
+                        console.error('Ошибка загрузки основной корзины:', error);
+                    });
+            }
+            
+            if (cartsData.facadeCart) {
+                axios.post('/api/load_facade_cart', { facade_cart: cartsData.facadeCart })
+                    .then(() => {
+                        console.log('Корзина фасадов загружена');
+                        updateFacadeCartDisplay();
+                    })
+                    .catch(error => {
+                        console.error('Ошибка загрузки корзины фасадов:', error);
+                    });
+            }
+        } catch (error) {
+            console.error('Ошибка при разборе JSON файла:', error);
+        }
+    };
+    
+    reader.readAsText(file);
+    
+    // Сбрасываем значение input[type=file], чтобы можно было загрузить один и тот же файл дважды подряд
+    event.target.value = '';
+}

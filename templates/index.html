@@ -205,6 +205,11 @@
         <button onclick="addToCart()">Добавить в корзину</button>
         <button onclick="updateCartDisplay(); openCartModal()">Просмотреть корзину</button>
         <button onclick="openFacadeCartModal()">Просмотреть корзину фасадов</button>
+        <button onclick="saveCartsToFile()">Сохранить корзины</button>
+        <label class="button" style="background: #28a745; color: white; border: none; padding: 10px 15px; border-radius: 4px; cursor: pointer; display: inline-block;">
+            Загрузить корзины
+            <input type="file" accept=".json" onchange="loadCartsFromFile(event)" style="display: none;">
+        </label>
     </div>
 
     <!-- Модальное окно для основной корзины -->
