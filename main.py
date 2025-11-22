@@ -767,7 +767,7 @@ async def calculate_total_price(
             facade_type, grass_color, facade_area
         )
         
-        total_price = module_prices["total_price"]#+ facade_price
+        total_price = module_prices["total_price"] + facade_price
         
         return {
             "module_prices": module_prices,
